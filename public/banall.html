@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAN@LL - EmpowerTours</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.4/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@multisynq/client@1.0.2/bundled/multisynq-client.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #chatroom { height: 60vh; overflow-y: auto; }
+        .chat-message { margin: 5px; padding: 10px; border-radius: 5px; }
+        .banned { color: red; text-decoration: line-through; }
+        .spectator { color: gray; }
+        #timer { font-size: 1.5em; font-weight: bold; }
+        #logo { max-width: 200px; }
+        .animate-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-4">
+        <img id="logo" src="/public/empowertours_logo.svg" alt="EmpowerTours Logo" class="animate-pulse mx-auto">
+        <h1 class="text-2xl font-bold text-center">BAN@LL</h1>
+        <p class="text-center mb-4">Join the Web3 Rock Climbing Adventure! <a href="https://t.me/empowertourschat" class="text-blue-500">EmpowerTours Chat</a></p>
+        <div id="timer" class="text-center mb-4">Waiting for game...</div>
+        <div id="status" class="text-center mb-4"></div>
+        <div id="chatroom" class="border p-2 mb-4"></div>
+        <input id="usernameInput" type="text" placeholder="Set Username" class="w-full p-2 mb-2 border rounded" disabled>
+        <input id="farcasterFidInput" type="text" placeholder="Farcaster FID (optional)" class="w-full p-2 mb-2 border rounded" disabled>
+        <input id="chatInput" type="text" placeholder="Type /ban @bastral" class="w-full p-2 mb-2 border rounded" disabled>
+        <button id="connectButton" class="w-full bg-blue-500 text-white p-2 rounded mb-2">Connect Wallet</button>
+        <button id="createProfileButton" class="w-full bg-green-500 text-white p-2 rounded mb-2" disabled>Create Profile</button>
+        <button id="joinButton" class="w-full bg-purple-500 text-white p-2 rounded mb-2" disabled>Join Game (1 MON)</button>
+        <button id="spectateButton" class="w-full bg-gray-500 text-white p-2 rounded mb-2" disabled>Spectate</button>
+        <button id="botButton" class="w-full bg-yellow-500 text-white p-2 rounded mb-2" disabled>Add Bots</button>
+    </div>
+    <script>
+        const web3 = new Web3('https://rpc.ankr.com/monad_testnet');
+        const contractAddress = '0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A';
+        const toursTokenAddress = '0xYOUR_TOURS_TOKEN_ADDRESS'; // Replace with EmpowerTours $TOURS address
+        const contractABI = [/* Replace with BANALL.sol ABI from Remix */];
+        const toursABI = [/* Replace with TOURS_ABI from EmpowerTours */];
+        const multicallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11';
+        const multicallABI = [{"inputs":[{"components":[{"name":"target","type":"address"},{"name":"callData","type":"bytes"}],"name":"calls","type":"tuple[]"}],"name":"aggregate","outputs":[{"name":"blockNumber","type":"uint256"},{"name":"returnData","type":"bytes[]"}],"stateMutability":"view","type":"function"}];
+        const contract = new web3.eth.Contract(contractABI, contractAddress);
+        const toursContract = new web3.eth.Contract(toursABI, toursTokenAddress);
+        const multicall = new web3.eth.Contract(multicallABI, multicallAddress);
+        const apiKey = 'YOUR_MULTISYNQ_API_KEY'; // From multisynq.io/coder
+        const appId = 'com.empowertours.banall';
+        let account = null;
+
+        class GameModel extends Multisynq.Model {
+            init() {
+                this.players = {};
+                this.bastral = null;
+                this.gameActive = false;
+                this.startTime = 0;
+                this.messages = [];
+                this.botPrompted = false;
+            }
+            addPlayer(wallet, username, isSpectator, farcasterFid) {
+                this.players[wallet] = { username, toursBalance: 0, isBanned: false, isSpectator, farcasterFid: farcasterFid || 0 };
+                this.messages.push(`${username} joined${isSpectator ? ' as BROKIE' : ''}`);
+                this.publish('playerUpdate');
+            }
+            banPlayer(banned, by) {
+                if (this.players[banned] && !this.players[banned].isBanned) {
+                    this.players[banned].isBanned = true;
+                    this.players[by].toursBalance += 1e18;
+                    this.messages.push(`${this.players[by].username} banned ${this.players[banned].username}! +1 $TOURS`);
+                    this.bastral = Object.keys(this.players).find(w => !this.players[w].isBanned && !this.players[w].isSpectator) || null;
+                    this.publish('playerUpdate');
+                }
+            }
+            startGame(bastral, startTime) {
+                this.gameActive = true;
+                this.startTime = startTime;
+                this.bastral = bastral;
+                this.messages.push('Game started!');
+                this.botPrompted = false;
+                this.publish('gameUpdate');
+            }
+            endGame(winner, pot) {
+                this.gameActive = false;
+                this.startTime = 0;
+                this.bastral = null;
+                this.messages.push(`${this.players[winner].username} won ${pot / 1e18} MON and ${2 * pot / 1e18} $TOURS!`);
+                Object.keys(this.players).forEach(w => { this.players[w].isBanned = false; });
+                this.botPrompted = false;
+                this.publish('gameUpdate');
+            }
+            addBot(id, username) {
+                this.players[id] = { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: 0 };
+                this.messages.push(`${username} (bot) joined`);
+                this.publish('playerUpdate');
+            }
+            checkLobby() {
+                const activePlayers = Object.keys(this.players).filter(w => !this.players[w].isSpectator && !this.players[w].isBanned);
+                if (activePlayers.length === 1 && !this.botPrompted && !this.gameActive) {
+                    this.botPrompted = true;
+                    this.messages.push('Alone in lobby! Add bots?');
+                    this.publish('botPrompt');
+                }
+            }
+        }
+
+        class GameView extends Multisynq.View {
+            init() {
+                this.subscribe('playerUpdate', () => this.updateUI());
+                this.subscribe('gameUpdate', () => this.updateUI());
+                this.subscribe('botPrompt', () => {
+                    document.getElementById('botButton').disabled = false;
+                    document.getElementById('status').textContent = 'Alone in lobby! Add bots?';
+                });
+            }
+            async updateUI() {
+                const chatroom = document.getElementById('chatroom');
+                chatroom.innerHTML = '';
+                this.model.messages.slice(-50).forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'chat-message';
+                    div.textContent = msg;
+                    chatroom.appendChild(div);
+                });
+                Object.keys(this.model.players).forEach(wallet => {
+                    const player = this.model.players[wallet];
+                    const div = document.createElement('div');
+                    div.className = `chat-message ${player.isBanned ? 'banned' : player.isSpectator ? 'spectator' : ''}`;
+                    div.textContent = `${player.username}: ${player.toursBalance / 1e18} $TOURS${player.farcasterFid ? ` (FID: ${player.farcasterFid})` : ''} (${wallet.substring(0, 6)}...)`;
+                    chatroom.appendChild(div);
+                });
+                const timeLeft = this.model.gameActive ? Math.max(0, this.model.startTime + 300 - Math.floor(Date.now() / 1000)) : 0;
+                document.getElementById('timer').textContent = timeLeft > 0 ? `Game Time: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Waiting for game...';
+                document.getElementById('timer').style.color = timeLeft <= 5 && timeLeft > 0 ? 'red' : 'black';
+                document.getElementById('chatInput').disabled = !this.model.gameActive || this.model.players[account]?.isBanned || this.model.players[account]?.isSpectator;
+                document.getElementById('botButton').disabled = Object.keys(this.model.players).filter(w => !this.model.players[w].isSpectator && !this.model.players[w].isBanned).length > 1 || !account || this.model.gameActive;
+                document.getElementById('status').textContent = this.model.bastral ? `Bastral: ${this.model.players[this.model.bastral]?.username || 'None'}` : 'No Bastral assigned';
+                chatroom.scrollTop = chatroom.scrollHeight;
+            }
+        }
+
+        async function init() {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+            Multisynq.Session.join({ apiKey, appId, name: Multisynq.App.autoSession(), password: Multisynq.App.autoPassword(), model: GameModel, view: GameView });
+            setInterval(() => Multisynq.Session.publish('checkLobby'), 5000);
+        }
+
+        async function connectWallet() {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    account = accounts[0];
+                    document.getElementById('connectButton').textContent = `Connected: ${account.substring(0, 6)}...`;
+                    document.getElementById('connectButton').disabled = true;
+                    document.getElementById('createProfileButton').disabled = false;
+                    document.getElementById('usernameInput').disabled = false;
+                    document.getElementById('farcasterFidInput').disabled = false;
+                } catch (error) {
+                    alert('Wallet connection failed: ' + error.message);
+                }
+            } else {
+                alert('MetaMask not detected. Please install MetaMask.');
+            }
+        }
+
+        async function createProfile() {
+            const username = document.getElementById('usernameInput').value;
+            const farcasterFid = document.getElementById('farcasterFidInput').value || '0';
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+            try {
+                await contract.methods.createProfile(username, farcasterFid).send({
+                    from: account,
+                    value: '10000',
+                    gas: 200000,
+                    maxFeePerGas: '2000000000',
+                    maxPriorityFeePerGas: '1000000000'
+                });
+                Multisynq.Session.model.addPlayer(account, username, false, farcasterFid);
+                document.getElementById('createProfileButton').disabled = true;
+                document.getElementById('usernameInput').disabled = true;
+                document.getElementById('farcasterFidInput').disabled = true;
+                document.getElementById('joinButton').disabled = false;
+                document.getElementById('spectateButton').disabled = false;
+            } catch (error) {
+                alert('Profile creation failed: ' + error.message);
+            }
+        }
+
+        async function joinGame() {
+            try {
+                await contract.methods.joinGame().send({
+                    from: account,
+                    value: web3.utils.toWei('1', 'ether'),
+                    gas: 200000,
+                    maxFeePerGas: '2000000000',
+                    maxPriorityFeePerGas: '1000000000'
+                });
+                Multisynq.Session.model.addPlayer(account, Multisynq.Session.model.players[account].username, false, Multisynq.Session.model.players[account].farcasterFid);
+                document.getElementById('joinButton').disabled = true;
+                document.getElementById('spectateButton').disabled = true;
+            } catch (error) {
+                alert('Join game failed: ' + error.message);
+            }
+        }
+
+        async function spectateGame() {
+            try {
+                await contract.methods.addSpectator().send({
+                    from: account,
+                    gas: 100000,
+                    maxFeePerGas: '2000000000',
+                    maxPriorityFeePerGas: '1000000000'
+                });
+                Multisynq.Session.model.addPlayer(account, Multisynq.Session.model.players[account].username, true, Multisynq.Session.model.players[account].farcasterFid);
+                document.getElementById('joinButton').disabled = true;
+                document.getElementById('spectateButton').disabled = true;
+            } catch (error) {
+                alert('Spectate failed: ' + error.message);
+            }
+        }
+
+        async function banBastral() {
+            const input = document.getElementById('chatInput').value;
+            if (input === '/ban @bastral') {
+                try {
+                    await contract.methods.banBastral().send({
+                        from: account,
+                        gas: 200000,
+                        maxFeePerGas: '2000000000',
+                        maxPriorityFeePerGas: '1000000000'
+                    });
+                    document.getElementById('chatInput').value = '';
+                    Multisynq.Session.model.banPlayer(Multisynq.Session.model.bastral, account);
+                } catch (error) {
+                    alert('Ban failed: ' + error.message);
+                }
+            }
+        }
+
+        async function addBots() {
+            const numBots = prompt('How many bots to add (1-10)?');
+            if (numBots && numBots >= 1 && numBots <= 10) {
+                Telegram.WebApp.sendData(`/addbots ${numBots}`);
+            }
+        }
+
+        async function checkGameState() {
+            const calls = [
+                { target: contractAddress, callData: contract.methods.getGameState().encodeABI() },
+                ...Object.keys(Multisynq.Session.model.players).map(wallet => ({
+                    target: toursTokenAddress,
+                    callData: toursContract.methods.balanceOf(wallet).encodeABI()
+                }))
+            ];
+            const results = await multicall.methods.aggregate(calls).call();
+            const [timeLeft, bastral, players, usernames, banned, toursBalances, spectators, farcasterFids] = web3.eth.abi.decodeParameters(['uint256', 'address', 'address[]', 'string[]', 'bool[]', 'uint256[]', 'bool[]', 'uint256[]'], results.returnData[0]);
+            for (let i = 0; i < players.length; i++) {
+                Multisynq.Session.model.players[players[i]] = Multisynq.Session.model.players[players[i]] || {
+                    username: usernames[i],
+                    toursBalance: toursBalances[i],
+                    isBanned: banned[i],
+                    isSpectator: spectators[i],
+                    farcasterFid: farcasterFids[i]
+                };
+                Multisynq.Session.model.players[players[i]].toursBalance = toursBalances[i];
+            }
+            if (timeLeft > 0 && !Multisynq.Session.model.gameActive) {
+                Multisynq.Session.model.startGame(bastral, Math.floor(Date.now() / 1000));
+            } else if (timeLeft === 0 && Multisynq.Session.model.gameActive) {
+                const winner = players.find((p, i) => !banned[i] && !spectators[i]);
+                if (winner) {
+                    Multisynq.Session.model.endGame(winner, results.returnData[0][5]);
+                }
+            }
+        }
+
+        document.getElementById('connectButton').addEventListener('click', connectWallet);
+        document.getElementById('createProfileButton').addEventListener('click', createProfile);
+        document.getElementById('joinButton').addEventListener('click', joinGame);
+        document.getElementById('spectateButton').addEventListener('click', spectateGame);
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') banBastral();
+        });
+        document.getElementById('botButton').addEventListener('click', addBots);
+        init();
+        setInterval(checkGameState, 1000);
+    </script>
+</body>
+</html>
