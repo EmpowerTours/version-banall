@@ -3104,31 +3104,32 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Build join transaction
-        nonce = await w3.eth.get_transaction_count(checksum_address)
-        tx = await contract.functions.joinTournament(tournament_id).build_transaction({
-            'from': checksum_address,
-            'nonce': nonce,
-            'gas': 200000,
-            'gas_price': await w3.eth.gas_price,
-            'value': 0
-        })
-        await update.message.reply_text(
-            f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
-            parse_mode="Markdown"
-        )
-        await set_pending_wallet(user_id, {
-            "awaiting_tx": True,
-            "tx_data": tx,
-            "wallet_address": checksum_address,
-            "timestamp": time.time()
-        })
-        logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Unexpected error in /jointournament for user {user_id}: {str(e)}")
-        error_msg = html.escape(str(e))
-        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
-        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
-        logger.info(f"/jointournament failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+        try:
+            nonce = await w3.eth.get_transaction_count(checksum_address)
+            tx = await contract.functions.joinTournament(tournament_id).build_transaction({
+                'from': checksum_address,
+                'nonce': nonce,
+                'gas': 200000,
+                'gas_price': await w3.eth.gas_price,
+                'value': 0
+            })
+            await update.message.reply_text(
+                f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+                parse_mode="Markdown"
+            )
+            await set_pending_wallet(user_id, {
+                "awaiting_tx": True,
+                "tx_data": tx,
+                "wallet_address": checksum_address,
+                "timestamp": time.time()
+            })
+            logger.info(f"/jointournament transaction built for user {user_id}, took {time.time() - start_time:.2f} seconds")
+        except Exception as e:
+            logger.error(f"Error building transaction for user {user_id}: {str(e)}")
+            error_msg = html.escape(str(e))
+            support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+            await update.message.reply_text(f"Failed to build transaction: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+            logger.info(f"/jointournament failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
 
 async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
