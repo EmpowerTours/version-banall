@@ -2101,6 +2101,12 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
             await update.message.reply_text(f"Failed to build transaction: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
             logger.info(f"/buyTours failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /buyTours for user {user_id}: {str(e)}")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        logger.info(f"/buyTours failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -2200,6 +2206,12 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
             await update.message.reply_text(f"Failed to build transaction: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
             logger.info(f"/sendTours failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /sendTours for user {user_id}: {str(e)}")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        logger.info(f"/sendTours failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -2384,6 +2396,12 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
             await update.message.reply_text(f"Failed to build transaction: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
             logger.info(f"/createprofile failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /createprofile for user {user_id}: {str(e)}")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        logger.info(f"/createprofile failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def banall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -3130,6 +3148,12 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
             await update.message.reply_text(f"Failed to build transaction: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
             logger.info(f"/jointournament failed due to transaction build error, took {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Unexpected error in /jointournament for user {user_id}: {str(e)}")
+        error_msg = html.escape(str(e))
+        support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
+        await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
+        logger.info(f"/jointournament failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
