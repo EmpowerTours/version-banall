@@ -956,7 +956,7 @@ BANALL_CONTRACT_ABI = [
         "anonymous": False,
         "inputs": [
             {
-                "indexed": true,
+                "indexed": True,
                 "internalType": "address",
                 "name": "winner",
                 "type": "address"
@@ -1001,13 +1001,13 @@ BANALL_CONTRACT_ABI = [
         "anonymous": false,
         "inputs": [
             {
-                "indexed": true,
+                "indexed": True,
                 "internalType": "address",
                 "name": "banned",
                 "type": "address"
             },
             {
-                "indexed": true,
+                "indexed": True,
                 "internalType": "address",
                 "name": "by",
                 "type": "address"
@@ -1026,7 +1026,7 @@ BANALL_CONTRACT_ABI = [
         "anonymous": false,
         "inputs": [
             {
-                "indexed": true,
+                "indexed": True,
                 "internalType": "address",
                 "name": "user",
                 "type": "address"
@@ -1051,7 +1051,7 @@ BANALL_CONTRACT_ABI = [
         "anonymous": false,
         "inputs": [
             {
-                "indexed": true,
+                "indexed": True,
                 "internalType": "address",
                 "name": "user",
                 "type": "address"
