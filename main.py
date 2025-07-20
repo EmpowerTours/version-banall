@@ -1291,6 +1291,16 @@ async def get_transaction(userId: str):
         logger.error(f"Error in get_transaction for userId {userId}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
+@app.get("/public/env.js")
+async def serve_env():
+    content = f"""
+window.env = {{
+  TOURS_TOKEN_ADDRESS: "{TOURS_TOKEN_ADDRESS}",
+  BANALL_CONTRACT_ADDRESS: "{BANALL_CONTRACT_ADDRESS}",
+  API_BASE_URL: "{API_BASE_URL}"
+}};
+    """
+    return Response(content=content, media_type="application/javascript")
 @app.post("/submit_wallet")
 async def submit_wallet(request: Request):
     start_time = time.time()
