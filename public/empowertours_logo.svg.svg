@@ -1,0 +1,5 @@
+<svg width="200" height="220" viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="80" stroke="#FF5733" stroke-width="10"/>
+  <path d="M50 150 L100 50 L150 150" fill="none" stroke="#FF5733" stroke-width="10"/>
+  <text x="50" y="200" font-family="Arial" font-size="20" fill="#FF5733">EmpowerTours</text>
+</svg>
