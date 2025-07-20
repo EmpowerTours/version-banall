@@ -962,13 +962,13 @@ BANALL_CONTRACT_ABI = [
                 "type": "address"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "monPot",
                 "type": "uint256"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "toursReward",
                 "type": "uint256"
@@ -978,10 +978,10 @@ BANALL_CONTRACT_ABI = [
         "type": "event"
     },
     {
-        "anonymous": false,
+        "anonymous": False,
         "inputs": [
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "startTime",
                 "type": "uint256"
@@ -998,7 +998,7 @@ BANALL_CONTRACT_ABI = [
         "type": "function"
     },
     {
-        "anonymous": false,
+        "anonymous": False,
         "inputs": [
             {
                 "indexed": True,
@@ -1013,7 +1013,7 @@ BANALL_CONTRACT_ABI = [
                 "type": "address"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "farcasterFid",
                 "type": "uint256"
@@ -1023,7 +1023,7 @@ BANALL_CONTRACT_ABI = [
         "type": "event"
     },
     {
-        "anonymous": false,
+        "anonymous": False,
         "inputs": [
             {
                 "indexed": True,
@@ -1032,13 +1032,13 @@ BANALL_CONTRACT_ABI = [
                 "type": "address"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "string",
                 "name": "username",
                 "type": "string"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "farcasterFid",
                 "type": "uint256"
@@ -1048,7 +1048,7 @@ BANALL_CONTRACT_ABI = [
         "type": "event"
     },
     {
-        "anonymous": false,
+        "anonymous": False,
         "inputs": [
             {
                 "indexed": True,
@@ -1057,7 +1057,7 @@ BANALL_CONTRACT_ABI = [
                 "type": "address"
             },
             {
-                "indexed": false,
+                "indexed": False,
                 "internalType": "uint256",
                 "name": "amount",
                 "type": "uint256"
