@@ -360,7 +360,7 @@ BANALL_CONTRACT_ABI = [
         "inputs": [],
         "name": "toursToken",
         "outputs": [
-            {"internalType": "contract IERC20", "name": "", "type": "address"}
+            {"internalType": "contract IERC20", "type": "address"}
         ],
         "stateMutability": "view",
         "type": "function"
@@ -527,11 +527,11 @@ async def reset_webhook():
         webhook_failed = True
         return False
 
-async def get_user_session(userId: str):
+async def get_session(user_id: str):
     if DATABASE_URL == "none":
-        return sessions.get(userId, {})
+        return sessions.get(user_id, {})
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM sessions WHERE user_id = $1", userId)
+        row = await conn.fetchrow("SELECT * FROM sessions WHERE user_id = $1", user_id)
         return dict(row) if row else {}
 
 async def set_session(user_id: str, wallet_address: str):
@@ -1242,7 +1242,8 @@ async def serve_env():
 window.env = {{
   TOURS_TOKEN_ADDRESS: "{TOURS_TOKEN_ADDRESS}",
   BANALL_CONTRACT_ADDRESS: "{BANALL_CONTRACT_ADDRESS}",
-  API_BASE_URL: "{API_BASE_URL}"
+  API_BASE_URL: "{API_BASE_URL}",
+  MONAD_RPC_URL: "{MONAD_RPC_URL}"
 }};
     """
     return Response(content=content, media_type="application/javascript")
@@ -1261,9 +1262,12 @@ async def serve_public(path: str):
     raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/get_session")
-async def get_user_session(userId: str):
-    session = await get_session(userId)
-    return {"wallet_address": session.get("wallet_address")}
+async def get_session(userId: str):
+    if DATABASE_URL == "none":
+        return {"wallet_address": sessions.get(userId, {}).get("wallet_address")}
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT wallet_address FROM sessions WHERE user_id = $1", userId)
+        return {"wallet_address": row['wallet_address'] if row else None}
 
 @app.get("/check_profile")
 async def check_profile(wallet: str):
