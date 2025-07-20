@@ -3891,7 +3891,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                             if DATABASE_URL != "none":
                                 async with pool.acquire() as conn:
                                     await conn.execute(
-                                        "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4)",
+                                        "INSERT INTO purchases (user_id, wallet_address, location_id, timestamp) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
                                         user_id, checksum_buyer, event.args.locationId, event.args.timestamp
                                     )
             except Exception as e:
@@ -4144,6 +4144,32 @@ async def serve_public(path: str):
     if os.path.exists(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
+
+@app.get("/get_session")
+async def get_session(userId: str):
+    session = await get_session(userId)
+    return {"wallet_address": session.get("wallet_address")}
+
+@app.get("/check_profile")
+async def check_profile(wallet: str):
+    checksum = w3.to_checksum_address(wallet)
+    has_profile = await banall_contract.functions.hasProfile(checksum).call()
+    return {"hasProfile": has_profile}
+
+@app.get("/game_state")
+async def game_state():
+    state = await banall_contract.functions.getGameState().call()
+    return {
+        "timeLeft": state[0],
+        "bastral": state[1],
+        "playersList": state[2],
+        "usernames": state[3],
+        "banned": state[4],
+        "toursBalances": state[5],
+        "spectators": state[6],
+        "farcasterFids": state[7],
+        "isGameActive": state[0] > 0
+    }
 
 @app.get("/get_transaction")
 async def get_transaction(userId: str):
