@@ -1,0 +1,36 @@
+services:
+  - name: web-production-5f438
+    buildCommand: ./build.sh
+    startCommand: python main.py
+    rootDir: .
+    env:
+      MONAD_RPC_URL: https://rpc.ankr.com/monad_testnet
+      BANALL_CONTRACT_ADDRESS: 0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A
+      TOURS_TOKEN_ADDRESS: 0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf
+      TELEGRAM_TOKEN: 8033554565:AAERTjteTJUJ22YZk0-cdYhd4TY_G-03WiQ
+      MULTISYNQ_API_KEY: 2UPB8vM6BUPmKqgPaBN1Trg89GfX6qzddlZZ270GFJ
+      API_BASE_URL: https://web-production-5f438.up.railway.app
+      PORT: 8080
+    port: 8080
+    healthcheckPath: /health
+    replicas: 1
+    cpu: 2
+    memory: 1GB
+    domains:
+      - web-production-5f438.up.railway.app
+
+  - name: version-banall-production
+    buildCommand: yarn build
+    startCommand: yarn start
+    rootDir: farcaster
+    env:
+      NEXT_PUBLIC_URL: https://version-banall-production.up.railway.app
+      NEXT_PUBLIC_TOURS_TOKEN_ADDRESS: 0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf
+      PORT: 8080
+    port: 8080
+    healthcheckPath: /.well-known/farcaster.json
+    replicas: 1
+    cpu: 2
+    memory: 1GB
+    domains:
+      - version-banall-production.up.railway.app
