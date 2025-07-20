@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Wallet - EmpowerTours</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.1/dist/umd/index.min.js"></script>
+    <script src="/public/env.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+        }
+        img {
+            max-width: 150px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #FF5733;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #e04e2d;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/public/empowertours_logo.svg" alt="EmpowerTours Logo">
+        <h1>Connect Wallet</h1>
+        <p>Connect your wallet to EmpowerTours</p>
+        <button onclick="connectMetaMask()">Connect with MetaMask</button>
+        <button onclick="connectWalletConnect()">Connect with WalletConnect</button>
+        <div id="status">Click to connect...</div>
+    </div>
+
+    <script>
+        const userId = new URLSearchParams(window.location.search).get('userId');
+        const API_BASE_URL = window.env.API_BASE_URL;
+
+        async function submitWallet(walletAddress) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/submit_wallet`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId, walletAddress })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    document.getElementById('status').innerText = 'Wallet connected successfully!';
+                } else {
+                    document.getElementById('status').innerText = `Error: ${result.message}`;
+                    document.getElementById('status').classList.add('error');
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = `Error: ${error.message}`;
+                document.getElementById('status').classList.add('error');
+            }
+        }
+
+        async function connectMetaMask() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    if (accounts && accounts.length > 0) {
+                        await submitWallet(accounts[0]);
+                    } else {
+                        document.getElementById('status').innerText = 'No accounts found.';
+                    }
+                } else {
+                    document.getElementById('status').innerText = 'MetaMask not detected.';
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = `Error: ${error.message}`;
+                document.getElementById('status').classList.add('error');
+            }
+        }
+
+        async function connectWalletConnect() {
+            try {
+                const provider = new WalletConnectProvider.default({
+                    rpc: { 10143: MONAD_RPC_URL },
+                    qrcode: true
+                });
+                await provider.enable();
+                const web3 = new Web3(provider);
+                const accounts = await web3.eth.getAccounts();
+                if (accounts && accounts.length > 0) {
+                    await submitWallet(accounts[0]);
+                } else {
+                    document.getElementById('status').innerText = 'No accounts found.';
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = `Error: ${error.message}`;
+                document.getElementById('status').classList.add('error');
+            }
+        }
+    </script>
+</body>
+</html>
