@@ -527,11 +527,11 @@ async def reset_webhook():
         webhook_failed = True
         return False
 
-async def get_session(user_id: str):
+async def get_user_session(userId: str):
     if DATABASE_URL == "none":
-        return sessions.get(user_id, {})
+        return sessions.get(userId, {})
     async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT * FROM sessions WHERE user_id = $1", user_id)
+        row = await conn.fetchrow("SELECT * FROM sessions WHERE user_id = $1", userId)
         return dict(row) if row else {}
 
 async def set_session(user_id: str, wallet_address: str):
@@ -1261,7 +1261,7 @@ async def serve_public(path: str):
     raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/get_session")
-async def get_session(userId: str):
+async def get_user_session(userId: str):
     session = await get_session(userId)
     return {"wallet_address": session.get("wallet_address")}
 
