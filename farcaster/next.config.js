@@ -9,7 +9,7 @@ const nextConfig = {
       },
       {
         source: '/images/:path*',
-        destination: '/public/images/:path*',
+        destination: 'https://web-production-5f438.up.railway.app/public/images/:path*',
       },
     ];
   },
