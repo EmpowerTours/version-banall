@@ -1,7 +1,7 @@
 import { NextResponse } from 'next';
 import { env } from 'process';
 
-const appUrl = env.NEXT_PUBLIC_URL || 'https://banall-farcaster.up.railway.app';
+const appUrl = env.NEXT_PUBLIC_URL || 'https://version-banall-production.up.railway.app';
 const farcasterConfig = {
   accountAssociation: {
     header: '',
