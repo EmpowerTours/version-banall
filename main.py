@@ -1,6 +1,5 @@
 import logging
 import os
-import signal
 import asyncio
 import time
 from fastapi import FastAPI, Request, HTTPException
@@ -61,7 +60,6 @@ logger.info(f"DATABASE_URL: {DATABASE_URL}")
 
 missing_vars = []
 if not TELEGRAM_TOKEN: missing_vars.append("TELEGRAM_TOKEN")
-if not API_BASE_URL: missing_vars.append("API_BASE_URL")
 if not CHAT_HANDLE: missing_vars.append("CHAT_HANDLE")
 if not MONAD_RPC_URL: missing_vars.append("MONAD_RPC_URL")
 if not CONTRACT_ADDRESS: missing_vars.append("CONTRACT_ADDRESS")
@@ -77,7 +75,7 @@ if missing_vars:
 else:
     logger.info("All required environment variables are set")
 
-# EmpowerTours Contract ABI
+# EmpowerTours Contract ABI (fixed booleans)
 CONTRACT_ABI = [
     {
         "inputs": [
@@ -894,7 +892,7 @@ CONTRACT_ABI = [
     }
 ]
 
-# BAN@LL Contract ABI
+# BAN@LL Contract ABI (no changes needed, but confirmed booleans are correct)
 BANALL_CONTRACT_ABI = [
     {
         "inputs": [],
@@ -1398,7 +1396,7 @@ BANALL_CONTRACT_ABI = [
     }
 ]
 
-# TOURS Token ABI
+# TOURS Token ABI (no changes needed)
 TOURS_ABI = [
     {
         "constant": False,
@@ -2080,8 +2078,12 @@ async def buy_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'from': checksum_address,
                 'value': mon_required,
                 'nonce': nonce,
-                'gas': 300000,
-                'gas_price': await w3.eth.gas_price
+                'gas': await contract.functions.buyTours(amount).estimate_gas({
+                    'from': checksum_address,
+                    'value': mon_required
+                }),
+                'gas_price': await w3.eth.gas_price,
+                'chain_id': await w3.eth.chain_id
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
             await set_pending_wallet(user_id, {
@@ -2185,8 +2187,9 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tx = await tours_contract.functions.transfer(recipient_checksum_address, amount).build_transaction({
                 'from': checksum_address,
                 'nonce': nonce,
-                'gas': 100000,
-                'gas_price': await w3.eth.gas_price
+                'gas': await tours_contract.functions.transfer(recipient_checksum_address, amount).estimate_gas({'from': checksum_address}),
+                'gas_price': await w3.eth.gas_price,
+                'chain_id': await w3.eth.chain_id
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
             await set_pending_wallet(user_id, {
@@ -2211,7 +2214,7 @@ async def send_tours(update: Update, context: ContextTypes.DEFAULT_TYPE):
         error_msg = html.escape(str(e))
         support_link = '<a href="https://t.me/empowertourschat">EmpowerTours Chat</a>'
         await update.message.reply_text(f"Unexpected error: {error_msg}. Try again or contact support at {support_link}. 😅", parse_mode="HTML")
-        logger.info(f"/sendTours failed due to unexpected error, took {time.time() - start_time:.2f} seconds")
+        logger.info(f"/sendTours faileddue to unexpected error, took {time.time() - start_time:.2f} seconds")
 
 async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -2375,8 +2378,12 @@ async def create_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'from': checksum_address,
                 'value': profile_fee,
                 'nonce': nonce,
-                'gas': 300000,
-                'gas_price': await w3.eth.gas_price
+                'gas': await contract.functions.createProfile().estimate_gas({
+                    'from': checksum_address,
+                    'value': profile_fee
+                }),
+                'gas_price': await w3.eth.gas_price,
+                'chain_id': await w3.eth.chain_id
             })
             logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
             await set_pending_wallet(user_id, {
@@ -2756,8 +2763,9 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             approve_tx = await tours_contract.functions.approve(contract.address, purchase_cost).build_transaction({
                 'from': checksum_address,
                 'nonce': nonce,
-                'gas': 100000,
-                'gas_price': await w3.eth.gas_price
+                'gas': await tours_contract.functions.approve(contract.address, purchase_cost).estimate_gas({'from': checksum_address}),
+                'gas_price': await w3.eth.gas_price,
+                'chain_id': await w3.eth.chain_id
             })
             await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
@@ -2780,9 +2788,10 @@ async def purchase_climb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx = await contract.functions.purchaseClimbingLocation(location_id).build_transaction({
             'from': checksum_address,
             'nonce': nonce,
-            'gas': 200000,
+            'gas': await contract.functions.purchaseClimbingLocation(location_id).estimate_gas({'from': checksum_address}),
             'gas_price': await w3.eth.gas_price,
-            'value': 0
+            'value': 0,
+            'chain_id': await w3.eth.chain_id
         })
         await update.message.reply_text(
             f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for climb purchase (10 $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
@@ -2899,12 +2908,13 @@ async def createtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx = await contract.functions.createTournament(entry_fee).build_transaction({
             'from': checksum_address,
             'nonce': nonce,
-            'gas': 200000,
+            'gas': await contract.functions.createTournament(entry_fee).estimate_gas({'from': checksum_address}),
             'gas_price': await w3.eth.gas_price,
-            'value': 0
+            'value': 0,
+            'chain_id': await w3.eth.chain_id
         })
         await update.message.reply_text(
-                        f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
+            f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for tournament creation ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
             parse_mode="Markdown"
         )
         await set_pending_wallet(user_id, {
@@ -3071,8 +3081,9 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             approve_tx = await tours_contract.functions.approve(contract.address, entry_fee).build_transaction({
                 'from': checksum_address,
                 'nonce': nonce,
-                'gas': 100000,
-                'gas_price': await w3.eth.gas_price
+                'gas': await tours_contract.functions.approve(contract.address, entry_fee).estimate_gas({'from': checksum_address}),
+                'gas_price': await w3.eth.gas_price,
+                'chain_id': await w3.eth.chain_id
             })
             await set_pending_wallet(user_id, {
                 "awaiting_tx": True,
@@ -3127,9 +3138,10 @@ async def jointournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tx = await contract.functions.joinTournament(tournament_id).build_transaction({
                 'from': checksum_address,
                 'nonce': nonce,
-                'gas': 200000,
+                'gas': await contract.functions.joinTournament(tournament_id).estimate_gas({'from': checksum_address}),
                 'gas_price': await w3.eth.gas_price,
-                'value': 0
+                'value': 0,
+                'chain_id': await w3.eth.chain_id
             })
             await update.message.reply_text(
                 f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for joining tournament #{tournament_id} ({entry_fee / 10**18} $TOURS) using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
@@ -3194,9 +3206,10 @@ async def endtournament(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx = await contract.functions.endTournament(tournament_id, winner_checksum_address).build_transaction({
             'from': checksum_address,
             'nonce': nonce,
-            'gas': 200000,
+            'gas': await contract.functions.endTournament(tournament_id, winner_checksum_address).estimate_gas({'from': checksum_address}),
             'gas_price': await w3.eth.gas_price,
-            'value': 0
+            'value': 0,
+            'chain_id': await w3.eth.chain_id
         })
         await update.message.reply_text(
             f"Please open or refresh {API_BASE_URL.rstrip('/')}/public/connect.html?userId={user_id} to sign the transaction for ending tournament #{tournament_id} using your wallet ([{checksum_address[:6]}...]({EXPLORER_URL}/address/{checksum_address})).",
@@ -3249,11 +3262,13 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Check profile status
         profile_status = "No profile"
+        profile_details = ""
         try:
             profile = await contract.functions.profiles(checksum_address).call({'gas': 500000})
             logger.info(f"Profile for {checksum_address}: {profile}")
             if profile[0]:
                 profile_status = "Profile exists"
+                profile_details = f"\nJournal Count: {profile[1]}\nFarcaster FID: {profile[2]}\nUsername: {profile[3]}\nBio: {profile[4]}\nCreated At: {datetime.fromtimestamp(profile[5]).strftime('%Y-%m-%d %H:%M:%S')}"
             else:
                 tours_balance = await tours_contract.functions.balanceOf(checksum_address).call()
                 logger.info(f"$TOURS balance for {checksum_address}: {tours_balance / 10**18} $TOURS")
@@ -3271,7 +3286,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"- {mon_balance / 10**18} $MON\n"
                 f"- {tours_balance / 10**18} $TOURS\n"
                 f"Address: [{checksum_address}]({EXPLORER_URL}/address/{checksum_address})\n"
-                f"Profile Status: {profile_status}\n"
+                f"Profile Status: {profile_status}{profile_details}\n"
                 f"Top up $MON at https://testnet.monad.xyz/faucet",
                 parse_mode="Markdown"
             )
@@ -3416,11 +3431,11 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if allowance < journal_cost:
                     nonce = await w3.eth.get_transaction_count(checksum_address)
                     approve_tx = await tours_contract.functions.approve(contract.address, journal_cost).build_transaction({
-                        'chainId': 10143,
                         'from': checksum_address,
                         'nonce': nonce,
-                        'gas': 100000,
-                        'gas_price': await w3.eth.gas_price
+                        'gas': await tours_contract.functions.approve(contract.address, journal_cost).estimate_gas({'from': checksum_address}),
+                        'gas_price': await w3.eth.gas_price,
+                        'chain_id': await w3.eth.chain_id
                     })
                     await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
@@ -3455,11 +3470,11 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 nonce = await w3.eth.get_transaction_count(checksum_address)
                 tx = await contract.functions.addJournalEntryWithDetails(content_hash, location_str, difficulty, is_shared, cast_hash).build_transaction({
-                    'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
-                    'gas': 500000,
-                    'gas_price': await w3.eth.gas_price
+                    'gas': await contract.functions.addJournalEntryWithDetails(content_hash, location_str, difficulty, is_shared, cast_hash).estimate_gas({'from': checksum_address}),
+                    'gas_price': await w3.eth.gas_price,
+                    'chain_id': await w3.eth.chain_id
                 })
                 await set_pending_wallet(user_id, {
                     "awaiting_tx": True,
@@ -3515,11 +3530,11 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if allowance < location_cost:
                     nonce = await w3.eth.get_transaction_count(checksum_address)
                     approve_tx = await tours_contract.functions.approve(contract.address, location_cost).build_transaction({
-                        'chainId': 10143,
                         'from': checksum_address,
                         'nonce': nonce,
-                        'gas': 100000,
-                        'gas_price': await w3.eth.gas_price
+                        'gas': await tours_contract.functions.approve(contract.address, location_cost).estimate_gas({'from': checksum_address}),
+                        'gas_price': await w3.eth.gas_price,
+                        'chain_id': await w3.eth.chain_id
                     })
                     await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
@@ -3571,11 +3586,11 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 nonce = await w3.eth.get_transaction_count(checksum_address)
                 tx = await contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).build_transaction({
-                    'chainId': 10143,
                     'from': checksum_address,
                     'nonce': nonce,
-                    'gas': 500000,
-                    'gas_price': await w3.eth.gas_price
+                    'gas': await contract.functions.createClimbingLocation(name, difficulty, latitude, longitude, photo_hash).estimate_gas({'from': checksum_address}),
+                    'gas_price': await w3.eth.gas_price,
+                    'chain_id': await w3.eth.chain_id
                 })
                 logger.info(f"Transaction built for user {user_id}: {json.dumps(tx, default=str)}")
                 await set_pending_wallet(user_id, {
@@ -3635,16 +3650,18 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         receipt = await w3.eth.get_transaction_receipt(tx_hash)
         if receipt and receipt.status:
             action = "Action completed"
-            if "createProfile" in pending["tx_data"]["data"]:
+            # Use method ID to identify transaction type (first 10 chars of data hex)
+            tx_data_hex = pending["tx_data"]["data"][2:10]  # Method ID is first 4 bytes (8 hex chars) after 0x
+            if tx_data_hex == contract.functions.createProfile().selector[2:]:  # Strip 0x
                 action = "Profile created with 1 $TOURS funded to your wallet"
-            elif "buyTours" in pending["tx_data"]["data"]:
+            elif tx_data_hex == contract.functions.buyTours(0).selector[2:]:
                 amount = int.from_bytes(bytes.fromhex(pending["tx_data"]["data"][10:]), byteorder='big') / 10**18
                 action = f"Successfully purchased {amount} $TOURS"
-            elif "transfer" in pending["tx_data"]["data"]:
+            elif tx_data_hex == tours_contract.functions.transfer('0x0', 0).selector[2:]:
                 action = "Successfully sent $TOURS to the recipient"
-            elif "createClimbingLocation" in pending["tx_data"]["data"]:
+            elif tx_data_hex == contract.functions.createClimbingLocation('', '', 0, 0, '').selector[2:]:
                 action = f"Climb '{pending.get('name', 'Unknown')}' ({pending.get('difficulty', 'Unknown')}) created"
-            elif "addJournalEntryWithDetails" in pending["tx_data"]["data"]:
+            elif tx_data_hex == contract.functions.addJournalEntryWithDetails('', '', '', False, '').selector[2:]:
                 action = "Journal entry added"
             await update.message.reply_text(f"Transaction confirmed! [Tx: {tx_hash}]({EXPLORER_URL}/tx/{tx_hash}) 🪙 {action}.", parse_mode="Markdown")
             if CHAT_HANDLE and TELEGRAM_TOKEN:
@@ -3661,11 +3678,17 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         next_tx_data["longitude"],
                         next_tx_data["photo_hash"]
                     ).build_transaction({
-                        'chainId': 10143,
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 500000,
-                        'gas_price': await w3.eth.gas_price
+                        'gas': await contract.functions.createClimbingLocation(
+                            next_tx_data["name"],
+                            next_tx_data["difficulty"],
+                            next_tx_data["latitude"],
+                            next_tx_data["longitude"],
+                            next_tx_data["photo_hash"]
+                        ).estimate_gas({'from': pending["wallet_address"]}),
+                        'gas_price': await w3.eth.gas_price,
+                        'chain_id': await w3.eth.chain_id
                     })
                     await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
@@ -3693,11 +3716,17 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         next_tx_data["is_shared"],
                         next_tx_data["cast_hash"]
                     ).build_transaction({
-                        'chainId': 10143,
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 500000,
-                        'gas_price': await w3.eth.gas_price
+                        'gas': await contract.functions.addJournalEntryWithDetails(
+                            next_tx_data["content_hash"],
+                            next_tx_data["location"],
+                            next_tx_data["difficulty"],
+                            next_tx_data["is_shared"],
+                            next_tx_data["cast_hash"]
+                        ).estimate_gas({'from': pending["wallet_address"]}),
+                        'gas_price': await w3.eth.gas_price,
+                        'chain_id': await w3.eth.chain_id
                     })
                     await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
@@ -3716,11 +3745,12 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     tx = await contract.functions.purchaseClimbingLocation(next_tx_data["location_id"]).build_transaction({
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 200000,
+                        'gas': await contract.functions.purchaseClimbingLocation(next_tx_data["location_id"]).estimate_gas({'from': pending["wallet_address"]}),
                         'gas_price': await w3.eth.gas_price,
-                        'value': 0
+                        'value': 0,
+                        'chain_id': await w3.eth.chain_id
                     })
-                    await set_pending_wallet(user_id, {
+                    awaitset_pending_wallet(user_id, {
                         "awaiting_tx": True,
                         "tx_data": tx,
                         "wallet_address": pending["wallet_address"],
@@ -3736,9 +3766,10 @@ async def handle_tx_hash(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     tx = await contract.functions.joinTournament(next_tx_data["tournament_id"]).build_transaction({
                         'from': pending["wallet_address"],
                         'nonce': nonce,
-                        'gas': 200000,
+                        'gas': await contract.functions.joinTournament(next_tx_data["tournament_id"]).estimate_gas({'from': pending["wallet_address"]}),
                         'gas_price': await w3.eth.gas_price,
-                        'value': 0
+                        'value': 0,
+                        'chain_id': await w3.eth.chain_id
                     })
                     await set_pending_wallet(user_id, {
                         "awaiting_tx": True,
