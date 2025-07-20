@@ -953,7 +953,7 @@ BANALL_CONTRACT_ABI = [
         "type": "constructor"
     },
     {
-        "anonymous": false,
+        "anonymous": False,
         "inputs": [
             {
                 "indexed": true,
