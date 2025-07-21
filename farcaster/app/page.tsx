@@ -1,6 +1,6 @@
 "use client";
 
-import { useMiniAppContext } from '@farcaster/miniapp-client';
+import { useMiniAppContext } from '@farcaster/miniapp-sdk';
 import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
