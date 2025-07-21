@@ -60,6 +60,8 @@
     </div>
 
     <script>
+        console.log('MONAD_RPC_URL:', window.env?.MONAD_RPC_URL);  // Debug log for RPC URL
+
         const userId = new URLSearchParams(window.location.search).get('userId');
         const API_BASE_URL = window.env.API_BASE_URL;
 
@@ -86,6 +88,11 @@
         async function connectMetaMask() {
             try {
                 if (typeof window.ethereum !== 'undefined') {
+                    // Switch to Monad Testnet chain
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x279f' }]  // Hex for 10143
+                    });
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     if (accounts && accounts.length > 0) {
                         await submitWallet(accounts[0]);
@@ -103,8 +110,8 @@
 
         async function connectWalletConnect() {
             try {
-                const provider = new WalletConnectProvider.default({
-                    rpc: { 10143: MONAD_RPC_URL },
+                const provider = new WalletConnectProvider({
+                    rpc: { 10143: window.env.MONAD_RPC_URL },
                     qrcode: true
                 });
                 await provider.enable();
