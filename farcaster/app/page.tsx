@@ -5,7 +5,8 @@ import Web3 from 'web3';
 
 export default function Banall() {
   const { context, actions } = useMiniAppContext();
-  const web3 = new Web3('https://rpc.ankr.com/monad_testnet');
+  console.log('MONAD_RPC_URL:', window.env?.MONAD_RPC_URL);  // Debug log for RPC URL
+  const web3 = new Web3(window.env?.MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet');
   const contractAddress = '0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A';
   const toursTokenAddress = process.env.NEXT_PUBLIC_TOURS_TOKEN_ADDRESS || '0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf';
   const contractABI = [
@@ -885,7 +886,7 @@ export default function Banall() {
 
   async function connectWallet() {
     try {
-      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x27c7' }] });
+      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x279f' }] });
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       setAccount(accounts[0]);
     } catch (error) {
