@@ -13,7 +13,11 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ethers": "^6.7.0",
-    "@farcaster/hub-web": "^0.7.0"
+    "@farcaster/hub-web": "^0.7.0",
+    "wagmi": "^2.0.0",  // Latest Wagmi for wallet management
+    "viem": "^2.0.0",  // Ethereum client for Wagmi
+    "@farcaster/miniapp-wagmi-connector": "^1.0.0",  // Farcaster connector
+    "@tanstack/react-query": "^5.0.0"  // Query provider for Wagmi
   },
   "devDependencies": {
     "eslint": "^8.57.0",
