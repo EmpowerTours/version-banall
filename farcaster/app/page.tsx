@@ -1,6 +1,6 @@
 "use client";
 
-import { useMiniAppContext } from '@farcaster/miniapp-sdk';
+import useMiniAppContext from '@farcaster/miniapp-sdk';
 import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
@@ -832,6 +832,67 @@ function BanallContent() {
       "stateMutability": "nonpayable",
       "type": "function"
     }
+  "use client";
+
+import useMiniAppContext from '@farcaster/miniapp-sdk';
+import SafeAreaContainer from '../components/SafeAreaContainer';
+import { useEffect, useState } from 'react';
+import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http, createPublicClient } from 'viem';
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
+import Web3 from 'web3';
+
+// Custom Monad Testnet chain
+const monadTestnet = {
+  id: Number(process.env.NEXT_PUBLIC_MONAD_CHAIN_ID) || 10143,
+  name: 'Monad Testnet',
+  network: 'monad-testnet',
+  nativeCurrency: { decimals: 18, name: 'Monad', symbol: 'MON' },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet'] },
+    public: { http: [process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet'] },
+  },
+  blockExplorers: {
+    default: { name: 'Monad Explorer', url: 'https://testnet.monadexplorer.com' },
+  },
+};
+
+// Wagmi config
+const queryClient = new QueryClient();
+const config = createConfig({
+  chains: [monadTestnet],
+  connectors: [farcasterMiniApp()],
+  client({ chain }) {
+    return createPublicClient({ chain, transport: http() });
+  },
+});
+
+export default function Banall() {
+  return (
+    <WagmiConfig config={config}>
+      <QueryClientProvider client={queryClient}>
+        <BanallContent />
+      </QueryClientProvider>
+    </WagmiConfig>
+  );
+}
+
+function BanallContent() {
+  const { context, actions } = useMiniAppContext();
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { switchChain } = useSwitchChain();
+
+  console.log('MONAD_RPC_URL:', process.env.NEXT_PUBLIC_MONAD_RPC_URL);
+  const web3 = new Web3(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet');
+  const contractAddress = '0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A';
+  const toursTokenAddress = process.env.NEXT_PUBLIC_TOURS_TOKEN_ADDRESS || '0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf';
+  const contractABI = [
+    // ABI remains unchanged, omitted for brevity
+  ];
+  const toursABI = [
+    // ABI remains unchanged, omitted for brevity
   ];
   const multicallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11';
   const multicallABI = [{"inputs":[{"components":[{"name":"target","type":"address"},{"name":"callData","type":"bytes"}],"name":"calls","type":"tuple[]"}],"name":"aggregate","outputs":[{"name":"blockNumber","type":"uint256"},{"name":"returnData","type":"bytes[]"}],"stateMutability":"view","type":"function"}];
@@ -1049,7 +1110,7 @@ function BanallContent() {
   }
 
   return (
-    <SafeAreaContainer insets={context?.client.safeAreaInsets}>
+    <SafeAreaContainer insets={null}>
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-4">
         <img src="/images/empowertours_logo.svg" alt="EmpowerTours Logo" className="animate-pulse mx-auto max-w-[200px]" />
         <h1 className="text-2xl font-bold text-center">BAN@LL</h1>
@@ -1093,7 +1154,7 @@ function BanallContent() {
           onChange={(e) => setChatInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && banBastral()}
           className="w-full p-2 mb-2 border rounded"
-          disabled={!gameActive || players[account]?.isBanned || players[wallet]?.isSpectator}
+          disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
         />
         <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
           {isConnected ? `Connected: ${account?.substring(0, 6)}...` : 'Connect Wallet'}
