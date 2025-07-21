@@ -1,3 +1,4 @@
+// version-banall/farcaster/app/page.tsx
 import { useMiniAppContext } from '@farcaster/miniapp-client';
 import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
@@ -48,7 +49,7 @@ function BanallContent() {
   const { connect, connectors } = useConnect();
   const { switchChain } = useSwitchChain();
 
-  console.log('MONAD_RPC_URL:', process.env.NEXT_PUBLIC_MONAD_RPC_URL); // Debug log
+  console.log('MONAD_RPC_URL:', process.env.NEXT_PUBLIC_MONAD_RPC_URL);
   const web3 = new Web3(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet');
   const contractAddress = '0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A';
   const toursTokenAddress = process.env.NEXT_PUBLIC_TOURS_TOKEN_ADDRESS || '0x2Da15A8B55BE310A7AB8EB0010506AB30CD6CBcf';
@@ -1091,7 +1092,7 @@ function BanallContent() {
           onChange={(e) => setChatInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && banBastral()}
           className="w-full p-2 mb-2 border rounded"
-          disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
+          disabled={!gameActive || players[account]?.isBanned || players[wallet]?.isSpectator}
         />
         <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
           {isConnected ? `Connected: ${account?.substring(0, 6)}...` : 'Connect Wallet'}
