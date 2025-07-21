@@ -91,7 +91,7 @@
                     // Switch to Monad Testnet chain
                     await window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x279f' }]  // Hex for 10143
+                        params: [{ chainId: '0x279f' }]  // Correct chain ID for Monad Testnet
                     });
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     if (accounts && accounts.length > 0) {
@@ -111,7 +111,7 @@
         async function connectWalletConnect() {
             try {
                 const provider = new WalletConnectProvider({
-                    rpc: { 10143: window.env.MONAD_RPC_URL },
+                    rpc: { 10143: window.env?.MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet' },
                     qrcode: true
                 });
                 await provider.enable();
