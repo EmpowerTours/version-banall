@@ -1,6 +1,6 @@
 "use client";
 
-import { useMiniAppContext } from '@farcaster/miniapp-client';
+import { useMiniAppContext } from '@farcaster/miniapp-sdk';
 import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
@@ -847,8 +847,8 @@ function BanallContent() {
   const [bastral, setBastral] = useState(null);
   const [gameActive, setGameActive] = useState(false);
   const [botPrompted, setBotPrompted] = useState(false);
-  const [username, setUsername] = useState(context?.user?.username || '');
-  const [farcasterFid, setFarcasterFid] = useState(context?.user?.fid || '0');
+  const [username, setUsername] = useState('');
+  const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
