@@ -110,6 +110,7 @@
 
         async function connectWalletConnect() {
             try {
+                const WalletConnectProvider = window.WalletConnectProvider.default;  // Fix for UMD export
                 const provider = new WalletConnectProvider({
                     rpc: { 10143: window.env?.MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet' },
                     qrcode: true
