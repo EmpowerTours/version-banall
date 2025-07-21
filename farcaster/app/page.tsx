@@ -1,4 +1,3 @@
-// version-banall/farcaster/app/page.tsx
 import { useMiniAppContext } from '@farcaster/miniapp-client';
 import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
