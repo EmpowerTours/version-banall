@@ -43,15 +43,16 @@ else
   echo "Images directory not found, skipping"
 fi
 
-# Build Farcaster app (skip if npm not available)
-if [ -d farcaster ] && command -v npm >/dev/null 2>&1; then
+# Build Farcaster app (completely optional)
+if [ -d farcaster ] && [ "${BUILD_FARCASTER:-false}" = "true" ] && command -v npm >/dev/null 2>&1; then
+  echo "Building Farcaster app..."
   cd farcaster
-  npm install
-  npm run build
+  timeout 120s npm install || echo "npm install timed out, continuing..."
+  timeout 60s npm run build || echo "npm build failed, continuing..."
   cd ..
-  echo "Farcaster Mini App built successfully"
+  echo "Farcaster build attempt completed"
 else
-  echo "Farcaster directory not found or npm not available, skipping Farcaster build"
+  echo "Skipping Farcaster build (BUILD_FARCASTER=${BUILD_FARCASTER:-false})"
 fi
 
 echo "Build completed successfully"
