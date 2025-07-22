@@ -25,13 +25,14 @@ else
   exit 1
 fi
 
-# Copy logo
+# Copy logo (it might already be in public directory)
 if [ -f empowertours_logo.svg ]; then
   cp empowertours_logo.svg public/empowertours_logo.svg
   echo "Copied empowertours_logo.svg to public/"
+elif [ -f public/empowertours_logo.svg ]; then
+  echo "empowertours_logo.svg already exists in public/"
 else
-  echo "empowertours_logo.svg not found"
-  exit 1
+  echo "empowertours_logo.svg not found, but continuing build..."
 fi
 
 # Copy Farcaster images
