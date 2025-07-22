@@ -1371,37 +1371,43 @@ async def startup_event():
                 break
 
         await initialize_web3()
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("help", help))
-        application.add_handler(CommandHandler("connectwallet", connect_wallet))
-        application.add_handler(CommandHandler("createprofile", create_profile))
-        application.add_handler(CommandHandler("banall", banall))
-        application.add_handler(CommandHandler("addbots", addbots))
-        application.add_handler(CommandHandler("buyTours", buy_tours))
-        application.add_handler(CommandHandler("sendTours", send_tours))
-        application.add_handler(CommandHandler("balance", balance))
-        application.add_handler(CommandHandler("ping", ping))
-        application.add_handler(CommandHandler("clearcache", clearcache))
-        application.add_handler(CommandHandler("forcewebhook", forcewebhook))
-        application.add_handler(CommandHandler("debug", debug_command))
-        application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: u.message.reply_text("Use a valid command like /banall or /help. 😅")))
-        application.job_queue.run_repeating(monitor_events, interval=10, first=1)
+        
+        # Initialize Telegram bot only if token is provided
+        if TELEGRAM_TOKEN and TELEGRAM_TOKEN != "":
+            application = Application.builder().token(TELEGRAM_TOKEN).build()
+            application.add_handler(CommandHandler("start", start))
+            application.add_handler(CommandHandler("help", help))
+            application.add_handler(CommandHandler("connectwallet", connect_wallet))
+            application.add_handler(CommandHandler("createprofile", create_profile))
+            application.add_handler(CommandHandler("banall", banall))
+            application.add_handler(CommandHandler("addbots", addbots))
+            application.add_handler(CommandHandler("buyTours", buy_tours))
+            application.add_handler(CommandHandler("sendTours", send_tours))
+            application.add_handler(CommandHandler("balance", balance))
+            application.add_handler(CommandHandler("ping", ping))
+            application.add_handler(CommandHandler("clearcache", clearcache))
+            application.add_handler(CommandHandler("forcewebhook", forcewebhook))
+            application.add_handler(CommandHandler("debug", debug_command))
+            application.add_handler(MessageHandler(filters.Regex(r'^0x[a-fA-F0-9]{64}$'), handle_tx_hash))
+            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda u, c: u.message.reply_text("Use a valid command like /banall or /help. 😅")))
+            application.job_queue.run_repeating(monitor_events, interval=10, first=1)
 
-        await application.initialize()
-        if not webhook_failed:
-            webhook_success = await reset_webhook()
-            if webhook_success:
-                logger.info(f"Webhook set successfully to {API_BASE_URL.rstrip('/')}/webhook")
+            await application.initialize()
+            if not webhook_failed:
+                webhook_success = await reset_webhook()
+                if webhook_success:
+                    logger.info(f"Webhook set successfully to {API_BASE_URL.rstrip('/')}/webhook")
+                    await application.start()
+                else:
+                    logger.warning("Webhook setup failed, falling back to polling")
+                    webhook_failed = True
+            if webhook_failed:
+                logger.info("Starting polling mode")
                 await application.start()
-            else:
-                logger.warning("Webhook setup failed, falling back to polling")
-                webhook_failed = True
-        if webhook_failed:
-            logger.info("Starting polling mode")
-            await application.start()
-            await application.updater.start_polling()
+                await application.updater.start_polling()
+            logger.info("Telegram bot initialized successfully")
+        else:
+            logger.warning("Telegram token not provided - running in web-only mode")
         logger.info(f"Startup completed, took {time.time() - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}, took {time.time() - start_time:.2f} seconds")
