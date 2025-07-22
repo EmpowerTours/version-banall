@@ -399,10 +399,14 @@
             ground.receiveShadow = true;
             scene.add(ground);
 
-            // Setup camera controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
+            // Setup camera controls (OrbitControls might not be available)
+            if (typeof THREE.OrbitControls !== 'undefined') {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+            } else {
+                console.warn('OrbitControls not available, using basic camera setup');
+            }
         }
 
         function createClimbingWall() {
