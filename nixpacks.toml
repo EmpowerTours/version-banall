@@ -1,2 +1,2 @@
 [phases.setup]
-nixPkgs = ['nodejs_20', 'npm_9', 'python3', 'libffi', 'libuuid']
+nixPkgs = ['nodejs_20', 'npm', 'python3', 'libffi', 'libuuid']
