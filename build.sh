@@ -40,15 +40,15 @@ else
   echo "Images directory not found, skipping"
 fi
 
-# Build Farcaster app
-if [ -d farcaster ]; then
+# Build Farcaster app (skip if npm not available)
+if [ -d farcaster ] && command -v npm >/dev/null 2>&1; then
   cd farcaster
   npm install
   npm run build
   cd ..
   echo "Farcaster Mini App built successfully"
 else
-  echo "Farcaster directory not found, skipping"
+  echo "Farcaster directory not found or npm not available, skipping Farcaster build"
 fi
 
 echo "Build completed successfully"
