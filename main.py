@@ -1602,6 +1602,8 @@ async def submit_tx(request: Request):
         logger.info(f"Received submit_tx for userId: {user_id}, txHash: {tx_hash}")
         if not user_id or not tx_hash:
             return {"status": "error", "message": "Missing userId or txHash"}
+        if not application:
+            return {"status": "error", "message": "Telegram bot not initialized"}
         await application.bot.send_message(user_id, f"Received transaction hash: {tx_hash}")
         await handle_tx_hash(Update.de_json({
             "update_id": 0,
