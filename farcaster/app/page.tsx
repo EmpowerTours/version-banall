@@ -1,13 +1,12 @@
 "use client";
 
-import { useMiniAppContext } from '@farcaster/miniapp-sdk';
-import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, createPublicClient } from 'viem';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import Web3 from 'web3';
+import * as Multisynq from "https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.esm.js";  // Multisynq ES module import
 
 // Custom Monad Testnet chain
 const monadTestnet = {
@@ -45,7 +44,6 @@ export default function Banall() {
 }
 
 function BanallContent() {
-  const { context, actions } = useMiniAppContext();
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { switchChain } = useSwitchChain();
@@ -850,6 +848,7 @@ function BanallContent() {
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
+  const [banAnimations, setBanAnimations] = useState({});  // Track animations for kick effect
 
   useEffect(() => {
     if (isConnected && address) {
@@ -884,6 +883,7 @@ function BanallContent() {
           this.messages.push(`${this.players[by].username} banned ${this.players[banned].username}! +1 $TOURS`);
           this.bastral = Object.keys(this.players).find(w => !this.players[w].isBanned && !this.players[w].isSpectator) || null;
           this.publish('playerUpdate');
+          this.publish('banAnimation', { banned: banned, by: by });  // Publish ban animation event
         }
       }
       startGame(bastral, startTime) {
@@ -929,6 +929,10 @@ function BanallContent() {
           setBotPrompted(this.model.botPrompted);
         });
         this.subscribe('botPrompt', () => setBotPrompted(true));
+        this.subscribe('banAnimation', (data) => {
+          setBanAnimations(prev => ({ ...prev, [data.banned]: true }));
+          setTimeout(() => setBanAnimations(prev => ({ ...prev, [data.banned]: false })), 1000);  // Reset animation after 1s
+        });
       }
     }});
     setInterval(() => Multisynq.Session.publish('checkLobby'), 5000);
@@ -943,6 +947,23 @@ function BanallContent() {
       }
     } catch (error) {
       alert('Wallet connection failed: ' + error.message);
+    }
+  }
+
+  async function banBastral() {
+    if (chatInput === '/ban @bastral') {
+      try {
+        await contract.methods.banBastral().send({
+          from: account,
+          gas: 200000,
+          maxFeePerGas: '2000000000',
+          maxPriorityFeePerGas: '1000000000'
+        });
+        Multisynq.Session.model.banPlayer(Multisynq.Session.model.bastral, account);
+        setChatInput('');
+      } catch (error) {
+        alert('Ban failed: ' + error.message);
+      }
     }
   }
 
@@ -1065,7 +1086,7 @@ function BanallContent() {
             <div key={i} className="chat-message">{msg}</div>
           ))}
           {Object.keys(players).map(wallet => (
-            <div key={wallet} className={`chat-message ${players[wallet].isBanned ? 'banned' : players[wallet].isSpectator ? 'spectator' : ''}`}>
+            <div key={wallet} className={`chat-message ${players[wallet].isBanned ? 'banned' : players[wallet].isSpectator ? 'spectator' : ''} ${banAnimations[wallet] ? 'kick-animation' : ''}`}>
               {players[wallet].username}: {players[wallet].toursBalance / 1e18} $TOURS{players[wallet].farcasterFid ? ` (FID: ${players[wallet].farcasterFid})` : ''} ({wallet.substring(0, 6)}...)
             </div>
           ))}
