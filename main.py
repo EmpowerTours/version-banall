@@ -1429,6 +1429,71 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Initialize game manager
+game_manager = GameManager()
+
+# Serve static files
+app.mount("/public", StaticFiles(directory="/app/public"), name="public")
+
+@app.websocket("/ws/{player_id}")
+async def websocket_endpoint(websocket: WebSocket, player_id: str):
+    await websocket.accept()
+    
+    try:
+        await game_manager.add_player(player_id, websocket)
+        
+        # Send initial room state
+        room_id = game_manager.player_to_room.get(player_id, "main")
+        await websocket.send_text(json.dumps({
+            "type": "room_joined",
+            "player_id": player_id,
+            "room_state": game_manager.get_room_state(room_id)
+        }))
+        
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if message["type"] == "position_update":
+                # Handle position updates
+                pass
+            elif message["type"] == "chat_message":
+                await game_manager.handle_chat_message(player_id, message["message"])
+            elif message["type"] == "start_game":
+                # Start game logic
+                room_id = game_manager.player_to_room.get(player_id, "main")
+                room = game_manager.rooms.get(room_id)
+                if room and len(room.players) >= 2:
+                    room.is_active = True
+                    room.game_start_time = time.time()
+                    import random
+                    bastral = random.choice(list(room.players.values()))
+                    room.bastral_id = bastral.id
+                    bastral.is_bastral = True
+                    
+                    await game_manager.broadcast_to_room(room_id, {
+                        "type": "game_started",
+                        "bastral_id": bastral.id,
+                        "bastral_username": bastral.username,
+                        "game_start_time": room.game_start_time
+                    })
+                    
+    except WebSocketDisconnect:
+        await game_manager.remove_player(player_id)
+    except Exception as e:
+        logger.error(f"WebSocket error for player {player_id}: {str(e)}")
+        await game_manager.remove_player(player_id)
+
+@app.get("/api/game_state/{room_id}")
+async def get_game_state_endpoint(room_id: str = "main"):
+    """Get current game state for a room"""
+    return game_manager.get_room_state(room_id)
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "game_rooms": len(game_manager.rooms), "active_connections": len(game_manager.connections)}
+
 @app.get("/public/env.js")
 async def serve_env():
     content = f"""
