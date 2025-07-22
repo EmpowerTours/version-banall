@@ -29,6 +29,196 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# 3D Game Classes
+@dataclass
+class PlayerPosition:
+    x: float
+    y: float
+    z: float
+    rotation_y: float
+
+@dataclass
+class Player:
+    id: str
+    username: str
+    wallet_address: str
+    position: PlayerPosition
+    is_banned: bool = False
+    is_bastral: bool = False
+    is_spectator: bool = False
+    last_updated: float = 0.0
+    animation_state: str = "idle"
+
+@dataclass
+class GameRoom:
+    id: str
+    players: Dict[str, Player]
+    is_active: bool = False
+    game_start_time: float = 0.0
+    bastral_id: Optional[str] = None
+    chat_messages: List[Dict] = None
+    
+    def __post_init__(self):
+        if self.chat_messages is None:
+            self.chat_messages = []
+
+class GameManager:
+    def __init__(self):
+        self.rooms: Dict[str, GameRoom] = {}
+        self.connections: Dict[str, WebSocket] = {}
+        self.player_to_room: Dict[str, str] = {}
+        
+    async def add_player(self, player_id: str, websocket: WebSocket, room_id: str = "main"):
+        self.connections[player_id] = websocket
+        self.player_to_room[player_id] = room_id
+        
+        if room_id not in self.rooms:
+            self.rooms[room_id] = GameRoom(id=room_id, players={})
+            
+        spawn_position = PlayerPosition(
+            x=float(len(self.rooms[room_id].players) * 2 - 10),
+            y=0.0,
+            z=-2.0,
+            rotation_y=0.0
+        )
+        
+        player = Player(
+            id=player_id,
+            username=f"Player_{player_id}",
+            wallet_address="",
+            position=spawn_position,
+            last_updated=time.time()
+        )
+        
+        self.rooms[room_id].players[player_id] = player
+        
+        await self.broadcast_to_room(room_id, {
+            "type": "player_joined",
+            "player": asdict(player),
+            "room_state": self.get_room_state(room_id)
+        })
+        
+    async def remove_player(self, player_id: str):
+        if player_id in self.connections:
+            del self.connections[player_id]
+            
+        if player_id in self.player_to_room:
+            room_id = self.player_to_room[player_id]
+            del self.player_to_room[player_id]
+            
+            if room_id in self.rooms and player_id in self.rooms[room_id].players:
+                del self.rooms[room_id].players[player_id]
+                
+                await self.broadcast_to_room(room_id, {
+                    "type": "player_left",
+                    "player_id": player_id,
+                    "room_state": self.get_room_state(room_id)
+                })
+                
+    async def handle_chat_message(self, player_id: str, message: str):
+        if player_id not in self.player_to_room:
+            return
+            
+        room_id = self.player_to_room[player_id]
+        room = self.rooms.get(room_id)
+        if not room:
+            return
+            
+        player = room.players.get(player_id)
+        if not player:
+            return
+            
+        if message.strip().lower() == "/ban @bastral":
+            await self.handle_ban_attempt(player_id, room_id)
+        else:
+            chat_msg = {
+                "type": "chat_message",
+                "player_id": player_id,
+                "username": player.username,
+                "message": message,
+                "timestamp": time.time()
+            }
+            
+            room.chat_messages.append(chat_msg)
+            await self.broadcast_to_room(room_id, chat_msg)
+            
+    async def handle_ban_attempt(self, player_id: str, room_id: str):
+        room = self.rooms.get(room_id)
+        if not room or not room.is_active:
+            return
+            
+        player = room.players.get(player_id)
+        bastral = room.players.get(room.bastral_id) if room.bastral_id else None
+        
+        if not player or not bastral or player.is_banned or bastral.is_banned:
+            return
+            
+        if player_id == room.bastral_id:
+            await self.send_to_player(player_id, {
+                "type": "ban_failed",
+                "reason": "Cannot ban yourself!"
+            })
+            return
+            
+        # Check proximity
+        distance = math.sqrt(
+            (player.position.x - bastral.position.x) ** 2 +
+            (player.position.y - bastral.position.y) ** 2 +
+            (player.position.z - bastral.position.z) ** 2
+        )
+        
+        if distance > 3.0:
+            await self.send_to_player(player_id, {
+                "type": "ban_failed",
+                "reason": "Too far from @bastral! Get closer to kick."
+            })
+            return
+            
+        bastral.is_banned = True
+        player.animation_state = "kicking"
+        bastral.animation_state = "falling"
+        
+        ban_event = {
+            "type": "player_banned",
+            "banner_id": player_id,
+            "banned_id": room.bastral_id,
+            "banner_username": player.username,
+            "banned_username": bastral.username,
+            "position": asdict(bastral.position)
+        }
+        
+        await self.broadcast_to_room(room_id, ban_event)
+        
+    def get_room_state(self, room_id: str) -> dict:
+        room = self.rooms.get(room_id)
+        if not room:
+            return {}
+            
+        return {
+            "room_id": room_id,
+            "is_active": room.is_active,
+            "player_count": len(room.players),
+            "players": {pid: asdict(player) for pid, player in room.players.items()},
+            "bastral_id": room.bastral_id,
+            "game_start_time": room.game_start_time
+        }
+        
+    async def send_to_player(self, player_id: str, message: dict):
+        if player_id in self.connections:
+            try:
+                await self.connections[player_id].send_text(json.dumps(message))
+            except:
+                pass
+                
+    async def broadcast_to_room(self, room_id: str, message: dict, exclude_player: str = None):
+        room = self.rooms.get(room_id)
+        if not room:
+            return
+            
+        for player_id in room.players.keys():
+            if player_id != exclude_player:
+                await self.send_to_player(player_id, message)
+
 # Global variables
 application = None
 load_dotenv()
