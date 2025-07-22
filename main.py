@@ -1494,6 +1494,11 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "game_rooms": len(game_manager.rooms), "active_connections": len(game_manager.connections)}
 
+@app.get("/health")
+async def railway_health_check():
+    """Railway health check endpoint"""
+    return {"status": "healthy", "timestamp": time.time()}
+
 @app.get("/public/env.js")
 async def serve_env():
     content = f"""
