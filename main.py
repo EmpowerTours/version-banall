@@ -1289,7 +1289,7 @@ async def monitor_events(context: ContextTypes.DEFAULT_TYPE):
                     if CHAT_HANDLE:
                         await send_notification(CHAT_HANDLE, message)
                     user_address = event.args.get('user') or event.args.get('winner') or event.args.get('banned') or event.args.get('by')
-                    if user_address and user_address.lower() in reverse_sessions:
+                    if user_address and user_address.lower() in reverse_sessions and application:
                         user_id = reverse_sessions[user_address.lower()]
                         await application.bot.send_message(user_id, f"Your action succeeded! {message.replace('<a href=', '[Tx: ').replace('</a>', ']')} 🪙 Check details on {EXPLORER_URL}/tx/{log['transactionHash'].hex()}", parse_mode="Markdown")
             except Exception as e:
