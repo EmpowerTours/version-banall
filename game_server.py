@@ -376,6 +376,11 @@ async def get_game_state(room_id: str = "main"):
     """Get current game state for a room"""
     return game_manager.get_room_state(room_id)
 
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "game_rooms": len(game_manager.rooms), "active_connections": len(game_manager.connections)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
