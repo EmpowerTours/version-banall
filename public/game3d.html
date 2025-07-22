@@ -524,7 +524,10 @@
 
         async function connectToGameServer() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/${myPlayerId}`;
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws/${myPlayerId}`;
+            
+            console.log('Connecting to WebSocket:', wsUrl);
             
             websocket = new WebSocket(wsUrl);
             
@@ -535,6 +538,7 @@
             
             websocket.onmessage = (event) => {
                 const message = JSON.parse(event.data);
+                console.log('Received message:', message);
                 handleServerMessage(message);
             };
             
@@ -545,7 +549,18 @@
             
             websocket.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                showNotification('Connection error');
+                showNotification('Connection error - trying demo mode');
+                // Enable demo mode if WebSocket fails
+                setTimeout(() => {
+                    gameRoom = {
+                        room_id: 'demo',
+                        is_active: false,
+                        player_count: 1,
+                        players: {},
+                        bastral_id: null
+                    };
+                    updateGameState();
+                }, 1000);
             };
         }
 
