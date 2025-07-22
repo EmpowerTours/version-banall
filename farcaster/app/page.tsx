@@ -1,14 +1,13 @@
 "use client";
 
+import SafeAreaContainer from '../components/SafeAreaContainer';
 import { useEffect, useState } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, createPublicClient } from 'viem';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import Web3 from 'web3';
-import * as Multisynq from "https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.esm.js";  // Multisynq ES module import
 
-// Custom Monad Testnet chain
 const monadTestnet = {
   id: Number(process.env.NEXT_PUBLIC_MONAD_CHAIN_ID) || 10143,
   name: 'Monad Testnet',
@@ -23,7 +22,6 @@ const monadTestnet = {
   },
 };
 
-// Wagmi config
 const queryClient = new QueryClient();
 const config = createConfig({
   chains: [monadTestnet],
@@ -848,7 +846,8 @@ function BanallContent() {
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
-  const [banAnimations, setBanAnimations] = useState({});  // Track animations for kick effect
+  const [banAnimations, setBanAnimations] = useState({});  // For kick animation
+  const [multisynqLoaded, setMultisynqLoaded] = useState(false);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -858,10 +857,23 @@ function BanallContent() {
   }, [isConnected, address, switchChain]);
 
   useEffect(() => {
-    if (!toursTokenAddress || toursTokenAddress === '0xYOUR_TOURS_TOKEN_ADDRESS') {
-      console.error('TOURS_TOKEN_ADDRESS is not set. Please configure it in Railway environment variables.');
-      return;
+    if (window.Multisynq) {
+      setMultisynqLoaded(true);
+    } else {
+      const interval = setInterval(() => {
+        if (window.Multisynq) {
+          setMultisynqLoaded(true);
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!toursTokenAddress || toursTokenAddress === '0xYOUR_TOURS_TOKEN_ADDRESS' || !multisynqLoaded) return;
+
+    const Multisynq = window.Multisynq;
     Multisynq.Session.join({ apiKey, appId, name: Multisynq.App.autoSession(), password: Multisynq.App.autoPassword(), model: class extends Multisynq.Model {
       init() {
         this.players = {};
@@ -883,7 +895,7 @@ function BanallContent() {
           this.messages.push(`${this.players[by].username} banned ${this.players[banned].username}! +1 $TOURS`);
           this.bastral = Object.keys(this.players).find(w => !this.players[w].isBanned && !this.players[w].isSpectator) || null;
           this.publish('playerUpdate');
-          this.publish('banAnimation', { banned: banned, by: by });  // Publish ban animation event
+          this.publish('banAnimation', { banned });
         }
       }
       startGame(bastral, startTime) {
@@ -931,14 +943,14 @@ function BanallContent() {
         this.subscribe('botPrompt', () => setBotPrompted(true));
         this.subscribe('banAnimation', (data) => {
           setBanAnimations(prev => ({ ...prev, [data.banned]: true }));
-          setTimeout(() => setBanAnimations(prev => ({ ...prev, [data.banned]: false })), 1000);  // Reset animation after 1s
+          setTimeout(() => setBanAnimations(prev => ({ ...prev, [data.banned]: false })), 1000);
         });
       }
     }});
-    setInterval(() => Multisynq.Session.publish('checkLobby'), 5000);
+    setInterval(() => window.Multisynq.Session.publish('checkLobby'), 5000);
     checkGameState();
     setInterval(checkGameState, 1000);
-  }, []);
+  }, [multisynqLoaded]);
 
   async function connectWallet() {
     try {
@@ -959,7 +971,7 @@ function BanallContent() {
           maxFeePerGas: '2000000000',
           maxPriorityFeePerGas: '1000000000'
         });
-        Multisynq.Session.model.banPlayer(Multisynq.Session.model.bastral, account);
+        window.Multisynq.Session.model.banPlayer(window.Multisynq.Session.model.bastral, account);
         setChatInput('');
       } catch (error) {
         alert('Ban failed: ' + error.message);
