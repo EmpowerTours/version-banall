@@ -7,12 +7,220 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.1/dist/umd/index.min.js"></script>
     <script src="/public/env.js"></script>
-    <!-- Style remains unchanged -->
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #ffd93d;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            font-weight: bold;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .success { background: rgba(107, 203, 119, 0.3); }
+        .error { background: rgba(255, 107, 107, 0.3); }
+        .info { background: rgba(255, 217, 61, 0.3); }
+    </style>
 </head>
 <body>
-    <!-- HTML content remains unchanged -->
+    <div class="container">
+        <h1>🔗 Connect Wallet</h1>
+        <p>Connect your MetaMask wallet to play BAN@LL</p>
+        
+        <button id="connectBtn" class="btn" onclick="connectWallet()">
+            Connect MetaMask
+        </button>
+        
+        <button id="gameBtn" class="btn" onclick="launchGame()" style="display:none;">
+            🎮 Launch Game
+        </button>
+        
+        <div id="status">
+            Click "Connect MetaMask" to get started
+        </div>
+    </div>
+
     <script>
-        // Script remains unchanged, but add the addMonadChain function from above if needed for fallback
+        let userWallet = null;
+        const statusDiv = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const gameBtn = document.getElementById('gameBtn');
+
+        // Get userId from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId');
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        async function connectWallet() {
+            try {
+                connectBtn.disabled = true;
+                updateStatus('Connecting to MetaMask...', 'info');
+
+                // Check if MetaMask is installed
+                if (typeof window.ethereum === 'undefined') {
+                    updateStatus('MetaMask not found. Please install MetaMask extension.', 'error');
+                    connectBtn.disabled = false;
+                    return;
+                }
+
+                // Request account access
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (accounts.length === 0) {
+                    updateStatus('No accounts found. Please unlock MetaMask.', 'error');
+                    connectBtn.disabled = false;
+                    return;
+                }
+
+                userWallet = accounts[0];
+                updateStatus(`Connected: ${userWallet.substring(0, 6)}...${userWallet.substring(38)}`, 'success');
+
+                // Try to switch to Monad testnet
+                await addMonadNetwork();
+
+                // Submit wallet to backend
+                if (userId) {
+                    await submitWallet();
+                }
+
+                // Show game button
+                gameBtn.style.display = 'inline-block';
+                connectBtn.style.display = 'none';
+
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                updateStatus(`Connection failed: ${error.message}`, 'error');
+                connectBtn.disabled = false;
+            }
+        }
+
+        async function addMonadNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x2797' }], // 10143 in hex
+                });
+            } catch (switchError) {
+                // Network doesn't exist, add it
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: '0x2797',
+                                chainName: 'Monad Testnet',
+                                nativeCurrency: {
+                                    name: 'MON',
+                                    symbol: 'MON',
+                                    decimals: 18
+                                },
+                                rpcUrls: ['https://rpc.ankr.com/monad_testnet'],
+                                blockExplorerUrls: ['https://testnet.monadexplorer.com']
+                            }]
+                        });
+                        updateStatus('Monad testnet added to MetaMask', 'success');
+                    } catch (addError) {
+                        console.error('Failed to add network:', addError);
+                    }
+                }
+            }
+        }
+
+        async function submitWallet() {
+            try {
+                const response = await fetch('/submit_wallet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        telegramUserId: userId,
+                        walletAddress: userWallet
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    updateStatus('Wallet connected successfully! ✅', 'success');
+                } else {
+                    updateStatus(`Backend error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error submitting wallet:', error);
+                updateStatus('Failed to save wallet connection', 'error');
+            }
+        }
+
+        function launchGame() {
+            // Redirect to the 3D game
+            window.location.href = '/public/game3d.html';
+        }
+
+        // Auto-connect if wallet is already connected
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        userWallet = accounts[0];
+                        updateStatus(`Already connected: ${userWallet.substring(0, 6)}...${userWallet.substring(38)}`, 'success');
+                        gameBtn.style.display = 'inline-block';
+                        connectBtn.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error checking existing connection:', error);
+                }
+            }
+        });
     </script>
 </body>
 </html>
