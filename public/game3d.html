@@ -921,7 +921,10 @@
             requestAnimationFrame(animate);
             
             handleMovement();
-            controls.update();
+            
+            if (controls && controls.update) {
+                controls.update();
+            }
             
             // Update camera to follow player
             if (myPlayer) {
@@ -931,7 +934,10 @@
                     myPlayer.position.z + 12
                 );
                 camera.position.lerp(targetPosition, 0.05);
-                controls.target.lerp(myPlayer.position, 0.05);
+                
+                if (controls && controls.target) {
+                    controls.target.lerp(myPlayer.position, 0.05);
+                }
             }
             
             renderer.render(scene, camera);
