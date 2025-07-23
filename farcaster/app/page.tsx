@@ -836,9 +836,7 @@ function BanallContent() {
   const contract = new web3.eth.Contract(contractABI, contractAddress);
   const toursContract = new web3.eth.Contract(toursABI, toursTokenAddress);
   const multicall = new web3.eth.Contract(multicallABI, multicallAddress);
-  const apiKey = '2UPB8vM6BUPmKqgPaBN1Trg89GfX6qzddlZZ270GFJ';
-  const appId = 'com.empowertours.banall';
-  const [account, setAccount] = useState(null);
+  const [account, setAccount] = useState<string | null>(null);
   const [players, setPlayers] = useState({});
   const [messages, setMessages] = useState([]);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -881,7 +879,7 @@ function BanallContent() {
     }
     try {
       await contract.methods.createProfile(username, farcasterFid).send({
-        from: account,
+        from: account!,
         value: '10000',
         gas: 200000,
         maxFeePerGas: '2000000000',
@@ -889,7 +887,7 @@ function BanallContent() {
       });
       setPlayers(prev => ({
         ...prev,
-        [account]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0 }
+        [account!]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0 }
       }));
       setMessages(prev => [...prev, `${username} joined`]);
       setUsername('');
@@ -902,13 +900,17 @@ function BanallContent() {
   async function joinGame() {
     try {
       await contract.methods.joinGame().send({
-        from: account,
+        from: account!,
         value: web3.utils.toWei('1', 'ether'),
         gas: 200000,
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      Multisynq.Session.model.addPlayer(account, Multisynq.Session.model.players[account].username, false, Multisynq.Session.model.players[account].farcasterFid);
+      setPlayers(prev => ({
+        ...prev,
+        [account!]: { ...prev[account!], isSpectator: false }
+      }));
+      setMessages(prev => [...prev, `${players[account!]?.username} joined the game`]);
     } catch (error) {
       alert('Join game failed: ' + error.message);
     }
@@ -917,12 +919,16 @@ function BanallContent() {
   async function spectateGame() {
     try {
       await contract.methods.addSpectator().send({
-        from: account,
+        from: account!,
         gas: 100000,
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      Multisynq.Session.model.addPlayer(account, Multisynq.Session.model.players[account].username, true, Multisynq.Session.model.players[account].farcasterFid);
+      setPlayers(prev => ({
+        ...prev,
+        [account!]: { ...prev[account!], isSpectator: true }
+      }));
+      setMessages(prev => [...prev, `${players[account!]?.username} joined as spectator`]);
     } catch (error) {
       alert('Spectate failed: ' + error.message);
     }
@@ -932,12 +938,19 @@ function BanallContent() {
     if (chatInput === '/ban @bastral') {
       try {
         await contract.methods.banBastral().send({
-          from: account,
+          from: account!,
           gas: 200000,
           maxFeePerGas: '2000000000',
           maxPriorityFeePerGas: '1000000000'
         });
-        Multisynq.Session.model.banPlayer(Multisynq.Session.model.bastral, account);
+        setPlayers(prev => ({
+          ...prev,
+          [bastral]: { ...prev[bastral], isBanned: true },
+          [account!]: { ...prev[account!], toursBalance: (prev[account!]?.toursBalance || 0) + 1e18 }
+        }));
+        setMessages(prev => [...prev, `${players[account!]?.username} banned ${players[bastral]?.username}! +1 $TOURS`]);
+        const newBastral = Object.keys(players).find(w => !players[w].isBanned && !players[w].isSpectator && w !== bastral) || null;
+        setBastral(newBastral);
         setChatInput('');
       } catch (error) {
         alert('Ban failed: ' + error.message);
@@ -948,35 +961,62 @@ function BanallContent() {
   async function addBots() {
     const numBots = prompt('How many bots to add (1-10)?');
     if (numBots && numBots >= 1 && numBots <= 10) {
-      actions.composeCast({ text: `/addbots ${numBots}` });
+      for (let i = 0; i < numBots; i++) {
+        const botAddress = `0xBot${i + 1}${Date.now()}`;
+        const botUsername = `Bot${i + 1}`;
+        setPlayers(prev => ({
+          ...prev,
+          [botAddress]: { username: botUsername, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: 0 }
+        }));
+        setMessages(prev => [...prev, `${botUsername} (bot) joined`]);
+      }
     }
   }
 
   async function checkGameState() {
-    const calls = [
-      { target: contractAddress, callData: contract.methods.getGameState().encodeABI() },
-      ...Object.keys(players).map(wallet => ({
-        target: toursTokenAddress,
-        callData: toursContract.methods.balanceOf(wallet).encodeABI()
-      }))
-    ];
-    const results = await multicall.methods.aggregate(calls).call();
-    const [timeLeft, bastral, playersList, usernames, banned, toursBalances, spectators, farcasterFids] = web3.eth.abi.decodeParameters(['uint256', 'address', 'address[]', 'string[]', 'bool[]', 'uint256[]', 'bool[]', 'uint256[]'], results.returnData[0]);
-    const updatedPlayers = {};
-    for (let i = 0; i < playersList.length; i++) {
-      updatedPlayers[playersList[i]] = { username: usernames[i], toursBalance: toursBalances[i], isBanned: banned[i], isSpectator: spectators[i], farcasterFid: farcasterFids[i] };
-    }
-    setPlayers(updatedPlayers);
-    setBastral(bastral);
-    setTimeLeft(timeLeft);
-    setGameActive(timeLeft > 0);
-    if (timeLeft > 0 && !Multisynq.Session.model.gameActive) {
-      Multisynq.Session.model.startGame(bastral, Math.floor(Date.now() / 1000));
-    } else if (timeLeft === 0 && Multisynq.Session.model.gameActive) {
-      const winner = playersList.find((p, i) => !banned[i] && !spectators[i]);
-      if (winner) {
-        Multisynq.Session.model.endGame(winner, results.returnData[0][5]);
+    try {
+      const calls = [
+        { target: contractAddress, callData: contract.methods.getGameState().encodeABI() },
+        ...Object.keys(players).map(wallet => ({
+          target: toursTokenAddress,
+          callData: toursContract.methods.balanceOf(wallet).encodeABI()
+        }))
+      ];
+      const results = await multicall.methods.aggregate(calls).call();
+      const [timeLeft, bastral, playersList, usernames, banned, toursBalances, spectators, farcasterFids] = web3.eth.abi.decodeParameters(['uint256', 'address', 'address[]', 'string[]', 'bool[]', 'uint256[]', 'bool[]', 'uint256[]'], results.returnData[0]);
+      const updatedPlayers = {};
+      for (let i = 0; i < playersList.length; i++) {
+        updatedPlayers[playersList[i]] = { username: usernames[i], toursBalance: toursBalances[i], isBanned: banned[i], isSpectator: spectators[i], farcasterFid: farcasterFids[i] };
       }
+      setPlayers(updatedPlayers);
+      setBastral(bastral);
+      setTimeLeft(timeLeft);
+      setGameActive(timeLeft > 0);
+      if (timeLeft > 0 && !gameActive) {
+        setMessages(prev => [...prev, 'Game started!']);
+        setBotPrompted(false);
+        setGameActive(true);
+      } else if (timeLeft === 0 && gameActive) {
+        const winner = playersList.find((p, i) => !banned[i] && !spectators[i]);
+        if (winner) {
+          setMessages(prev => [...prev, `${updatedPlayers[winner]?.username} won ${results.returnData[0][5] / 1e18} MON and ${2 * results.returnData[0][5] / 1e18} $TOURS!`]);
+          setPlayers(prev => {
+            const newPlayers = { ...prev };
+            Object.keys(newPlayers).forEach(w => { newPlayers[w].isBanned = false; });
+            return newPlayers;
+          });
+          setGameActive(false);
+          setBastral(null);
+          setBotPrompted(false);
+        }
+      }
+      const activePlayers = Object.keys(updatedPlayers).filter(w => !updatedPlayers[w].isSpectator && !updatedPlayers[w].isBanned);
+      if (activePlayers.length === 1 && !botPrompted && !gameActive) {
+        setBotPrompted(true);
+        setMessages(prev => [...prev, 'Alone in lobby! Add bots?']);
+      }
+    } catch (error) {
+      console.error('Error checking game state:', error);
     }
   }
 
