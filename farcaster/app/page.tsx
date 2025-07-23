@@ -881,7 +881,7 @@ function BanallContent() {
       await contract.methods.createProfile(username, farcasterFid).send({
         from: account!,
         value: '10000',
-        gas: 200000,
+        gas: '200000',
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
@@ -902,7 +902,7 @@ function BanallContent() {
       await contract.methods.joinGame().send({
         from: account!,
         value: web3.utils.toWei('1', 'ether'),
-        gas: 200000,
+        gas: '200000',
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
@@ -920,7 +920,7 @@ function BanallContent() {
     try {
       await contract.methods.addSpectator().send({
         from: account!,
-        gas: 100000,
+        gas: '100000',
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
@@ -939,7 +939,7 @@ function BanallContent() {
       try {
         await contract.methods.banBastral().send({
           from: account!,
-          gas: 200000,
+          gas: '200000',
           maxFeePerGas: '2000000000',
           maxPriorityFeePerGas: '1000000000'
         });
@@ -999,7 +999,7 @@ function BanallContent() {
       } else if (timeLeft === 0 && gameActive) {
         const winner = playersList.find((p, i) => !banned[i] && !spectators[i]);
         if (winner) {
-          setMessages(prev => [...prev, `${updatedPlayers[winner]?.username} won ${results.returnData[0][5] / 1e18} MON and ${2 * results.returnData[0][5] / 1e18} $TOURS!`]);
+          setMessages(prev => [...prev, `${updatedPlayers[winner].username} won ${results.returnData[0][5] / 1e18} MON and ${2 * results.returnData[0][5] / 1e18} $TOURS!`]);
           setPlayers(prev => {
             const newPlayers = { ...prev };
             Object.keys(newPlayers).forEach(w => { newPlayers[w].isBanned = false; });
