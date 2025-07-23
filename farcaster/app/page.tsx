@@ -46,7 +46,7 @@ export default function Banall() {
 function BanallContent() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const { switchChain } = useSwitchChain();
+  const { switchChain } from useSwitchChain();
 
   console.log('MONAD_RPC_URL:', process.env.NEXT_PUBLIC_MONAD_RPC_URL);
   const web3 = new Web3(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet');
@@ -842,7 +842,7 @@ function BanallContent() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [bastral, setBastral] = useState(null);
   const [gameActive, setGameActive] = useState(false);
-  const [botPrompted, setBotPrompted] = false;
+  const [botPrompted, setBotPrompted] = useState(false);
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
@@ -1067,7 +1067,7 @@ function BanallContent() {
         disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
       />
       <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
-        {isConnected ? `Connected: ${account?.substring(0, 6)}...` : 'Connect Wallet'}
+        {isConnected ? `Connected: ${address?.substring(0, 6)}...` : 'Connect Wallet'}
       </button>
       <button onClick={createProfile} className="w-full bg-green-500 text-white p-2 rounded mb-2" disabled={!!players[account]}>
         Create Profile
