@@ -1,177 +1,961 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BAN@LL - 3D Rock Climbing Game</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="/public/env.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      color: white;
-    }
-    .container {
-      text-align: center;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 40px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-    img {
-      max-width: 150px;
-      margin-bottom: 20px;
-      filter: brightness(1.2);
-    }
-    h1 {
-      font-size: 3em;
-      margin: 20px 0;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-      background: linear-gradient(45deg, #ff6b6b, #ffd93d);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    p {
-      font-size: 1.2em;
-      margin-bottom: 30px;
-      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-    }
-    .game-btn {
-      padding: 15px 30px;
-      font-size: 18px;
-      background: linear-gradient(45deg, #ff6b6b, #ff8e53);
-      color: white;
-      border: none;
-      border-radius: 25px;
-      cursor: pointer;
-      margin: 10px;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .game-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-    }
-    .game-btn:active {
-      transform: translateY(0);
-    }
-    #status {
-      margin-top: 20px;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-      background: rgba(0, 0, 0, 0.3);
-      padding: 10px 15px;
-      border-radius: 10px;
-    }
-    .error {
-      color: #ff6b6b;
-      background: rgba(255, 107, 107, 0.2);
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-top: 30px;
-    }
-    .feature {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 20px;
-      border-radius: 15px;
-      backdrop-filter: blur(5px);
-    }
-    .feature h3 {
-      color: #ffd93d;
-      margin-bottom: 10px;
-    }
-    .feature p {
-      font-size: 0.9em;
-      margin: 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BAN@LL - 3D Rock Climbing Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/public/env.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script> <!-- Phaser 3.55 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script> <!-- Three.js 0.170.0 -->
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script> <!-- Farcade SDK -->
+    <meta property="fc:frame" content="vNext" />
+    <meta property="fc:frame:image" content="https://web-production-5f438.up.railway.app/images/splash.png" />
+    <meta property="fc:frame:image:aspect_ratio" content="1.91:1" />
+    <meta property="fc:frame:button:1" content="Join BAN@LL" />
+    <meta property="fc:frame:button:1:action" content="link" />
+    <meta property="fc:frame:button:1:target" content="https://web-production-5f438.up.railway.app/public/banall.html" />
+    <meta property="og:title" content="BAN@LL by EmpowerTours" />
+    <meta property="og:description" content="Join the Web3 rock climbing adventure game!" />
+    <meta property="og:image" content="https://web-production-5f438.up.railway.app/images/splash.png" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            color: white;
+            user-select: none; /* Ensure in-game text cannot be highlighted */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        #gameUI {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #topBar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+        }
+
+        #gameInfo {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #gameStatus {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+
+        #playerCount {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        #bastralInfo {
+            text-align: right;
+        }
+
+        #bastralName {
+            font-size: 14px;
+            color: #ffd93d;
+            font-weight: bold;
+        }
+
+        #gameTimer {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        #chatContainer {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+
+        #chatMessages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .chat-message {
+            margin-bottom: 5px;
+            word-wrap: break-word;
+        }
+
+        .chat-system {
+            color: #ffd93d;
+            font-weight: bold;
+        }
+
+        .chat-ban {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .chat-player {
+            color: #6bcf7f;
+        }
+
+        #chatInput {
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 10px;
+            border-radius: 0 0 10px 10px;
+            outline: none;
+            font-size: 12px;
+        }
+
+        #chatInput::placeholder {
+            color: #ccc;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: auto;
+        }
+
+        .control-btn {
+            display: block;
+            width: 60px;
+            height: 40px;
+            margin: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        #mobileControls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        #startGameBtn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+        }
+
+        #startGameBtn:hover {
+            background: #ff5252;
+        }
+
+        .notification {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 107, 107, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            #chatContainer {
+                width: calc(100vw - 20px);
+                height: 150px;
+                left: 10px;
+                right: 10px;
+            }
+            
+            #controls {
+                right: 10px;
+                bottom: 180px;
+            }
+        }
+
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loader {
+            border: 3px solid #333;
+            border-top: 3px solid #ff6b6b;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <img src="/public/empowertours_logo.svg" alt="EmpowerTours Logo">
-    <h1>BAN@LL</h1>
-    <p>3D Web3 Rock Climbing Adventure Game</p>
-    
-    <button class="game-btn" onclick="launchGame()">🧗‍♂️ Launch 3D Game</button>
-    <button class="game-btn" onclick="init()">📱 Quick Join</button>
-    
-    <div class="features">
-      <div class="feature">
-        <h3>🎯 Real-time Combat</h3>
-        <p>Type "/ban @bastral" to kick players in 3D space</p>
-      </div>
-      <div class="feature">
-        <h3>🧗‍♀️ Climbing Wall</h3>
-        <p>Navigate the rock climbing environment</p>
-      </div>
-      <div class="feature">
-        <h3>💰 Web3 Rewards</h3>
-        <p>Earn 1 $TOURS per ban, double pot for winner</p>
-      </div>
-      <div class="feature">
-        <h3>🤖 Multi-platform</h3>
-        <p>Telegram & Farcaster Mini Apps</p>
-      </div>
+    <div id="loadingScreen">
+        <div class="loader"></div>
+        <h2>Loading BAN@LL 3D Game...</h2>
+        <p>Connecting to climbing wall...</p>
     </div>
-    
-    <div id="status">Loading...</div>
-  </div>
 
-  <script>
-    const WebApp = window.Telegram?.WebApp;
-    let userId = null;
-
-    function launchGame() {
-      // Redirect to 3D game
-      window.location.href = '/public/game3d.html';
-    }
-
-    async function init() {
-      try {
-        if (WebApp) {
-          WebApp.ready();
-          WebApp.expand();
-          
-          if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
-            userId = WebApp.initDataUnsafe.user.id;
-            document.getElementById('status').innerText = `Welcome, ${WebApp.initDataUnsafe.user.first_name}! Ready to climb.`;
-            document.getElementById('status').classList.remove('error');
-          }
-        }
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
         
-        if (!userId) {
-          document.getElementById('status').innerText = 'Demo mode - Click Launch 3D Game to play!';
+        <div id="gameUI">
+            <div id="topBar">
+                <div id="gameInfo">
+                    <div id="gameStatus">Waiting for players...</div>
+                    <div id="playerCount">Players: 0</div>
+                </div>
+                <div id="bastralInfo">
+                    <div id="bastralName">No @bastral selected</div>
+                    <div id="gameTimer"></div>
+                </div>
+            </div>
+
+            <div id="chatContainer">
+                <div id="chatMessages"></div>
+                <input type="text" id="chatInput" placeholder="Type '/ban @bastral' to kick or chat...">
+            </div>
+
+            <div id="controls">
+                <div>Controls:</div>
+                <div id="mobileControls">
+                    <button class="control-btn" id="moveUp">W</button>
+                    <button class="control-btn" id="moveForward">↑</button>
+                    <button class="control-btn" id="climb">Climb</button>
+                    <button class="control-btn" id="moveLeft">A</button>
+                    <button class="control-btn" id="moveDown">S</button>
+                    <button class="control-btn" id="moveRight">D</button>
+                </div>
+            </div>
+
+            <button id="startGameBtn">Start Game</button>
+            <div id="notification" class="notification"></div>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let scene, camera, renderer, controls;
+        let players = {};
+        let myPlayerId = null;
+        let myPlayer = null;
+        let gameRoom = null;
+        let websocket = null;
+        let isGameActive = false;
+        let bastralId = null;
+        let gameStartTime = 0;
+
+        // Movement variables
+        let keys = {};
+        let moveSpeed = 5;
+        let climbSpeed = 3;
+        let isClimbing = false;
+
+        // Initialize Telegram Web App
+        const WebApp = window.Telegram?.WebApp;
+        let userId = null;
+
+        // Initialize game
+        async function init() {
+            try {
+                // Get Telegram user info
+                if (WebApp) {
+                    WebApp.ready();
+                    WebApp.expand();
+                    
+                    if (WebApp.initDataUnsafe && WebApp.initDataUnsafe.user) {
+                        userId = WebApp.initDataUnsafe.user.id.toString();
+                        myPlayerId = userId;
+                    }
+                }
+                
+                if (!userId) {
+                    userId = 'demo_' + Math.random().toString(36).substr(2, 9);
+                    myPlayerId = userId;
+                }
+
+                // Initialize 3D scene
+                initScene();
+                
+                // Connect to game server
+                await connectToGameServer();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Start game loop
+                animate();
+                
+                // Hide loading screen
+                document.getElementById('loadingScreen').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Failed to initialize game:', error);
+                showNotification('Failed to load game. Please refresh.');
+            }
         }
 
-        // Quick launch to 3D game
-        setTimeout(() => {
-          launchGame();
-        }, 1000);
-        
-      } catch (error) {
-        document.getElementById('status').innerText = `Error: ${error.message}`;
-        document.getElementById('status').classList.add('error');
-      }
-    }
+        function initScene() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
 
-    // Initialize on load
-    window.onload = () => {
-      document.getElementById('status').innerText = 'Ready to play! Click Launch 3D Game.';
-    };
-  </script>
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 20);
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 50, 0);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Create climbing wall environment
+            createClimbingWall();
+            
+            // Create ground
+            const groundGeometry = new THREE.PlaneGeometry(50, 50);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Setup camera controls
+            if (typeof THREE.OrbitControls !== 'undefined') {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+            } else {
+                console.warn('OrbitControls not available, using basic camera setup');
+            }
+        }
+
+        function createClimbingWall() {
+            // Main climbing wall
+            const wallGeometry = new THREE.BoxGeometry(30, 20, 2);
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.position.set(0, 10, -10);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            scene.add(wall);
+
+            // Add climbing holds
+            for (let i = 0; i < 20; i++) {
+                const holdGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+                const colors = [0xff6b6b, 0x4ecdc4, 0xffd93d, 0x6bcf7f];
+                const holdMaterial = new THREE.MeshLambertMaterial({ 
+                    color: colors[Math.floor(Math.random() * colors.length)] 
+                });
+                const hold = new THREE.Mesh(holdGeometry, holdMaterial);
+                
+                hold.position.set(
+                    (Math.random() - 0.5) * 25,
+                    Math.random() * 15 + 2,
+                    -8.5
+                );
+                hold.castShadow = true;
+                scene.add(hold);
+            }
+
+            // Add safety mats
+            for (let i = -3; i <= 3; i++) {
+                const matGeometry = new THREE.BoxGeometry(4, 0.5, 4);
+                const matMaterial = new THREE.MeshLambertMaterial({ color: 0x0066cc });
+                const mat = new THREE.Mesh(matGeometry, matMaterial);
+                mat.position.set(i * 5, 0.25, -5);
+                mat.castShadow = true;
+                scene.add(mat);
+            }
+        }
+
+        function createStickFigure(playerId, position, isMe = false) {
+            const group = new THREE.Group();
+            
+            // Body (main torso)
+            const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ 
+                color: isMe ? 0xff6b6b : (playerId === bastralId ? 0xffd93d : 0xffffff) 
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1;
+            body.castShadow = true;
+            group.add(body);
+
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.3);
+            const head = new THREE.Mesh(headGeometry, bodyMaterial);
+            head.position.y = 2.5;
+            head.castShadow = true;
+            group.add(head);
+
+            // Arms
+            const armGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+            
+            const leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
+            leftArm.position.set(-0.7, 1.5, 0);
+            leftArm.rotation.z = Math.PI / 6;
+            leftArm.castShadow = true;
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
+            rightArm.position.set(0.7, 1.5, 0);
+            rightArm.rotation.z = -Math.PI / 6;
+            rightArm.castShadow = true;
+            group.add(rightArm);
+
+            // Legs
+            const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+            
+            const leftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
+            leftLeg.position.set(-0.3, -0.25, 0);
+            leftLeg.castShadow = true;
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
+            rightLeg.position.set(0.3, -0.25, 0);
+            rightLeg.castShadow = true;
+            group.add(rightLeg);
+
+            // Position the figure
+            group.position.set(position.x, position.y, position.z);
+            group.rotation.y = position.rotation_y;
+
+            // Add name label
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = 'white';
+            context.font = '24px Arial';
+            context.textAlign = 'center';
+            context.fillText(playerId === bastralId ? `@${playerId}` : playerId, 128, 40);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+            const label = new THREE.Sprite(labelMaterial);
+            label.position.y = 3.5;
+            label.scale.set(2, 0.5, 1);
+            group.add(label);
+
+            return group;
+        }
+
+        async function connectToGameServer() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws/${myPlayerId}`;
+            
+            console.log('Connecting to WebSocket:', wsUrl);
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = () => {
+                console.log('Connected to game server');
+                showNotification('Connected to climbing wall!');
+            };
+            
+            websocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log('Received message:', message);
+                handleServerMessage(message);
+            };
+            
+            websocket.onclose = () => {
+                console.log('Disconnected from game server');
+                showNotification('Disconnected from server');
+            };
+            
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showNotification('Connection error - trying demo mode');
+                // Enable demo mode if WebSocket fails
+                setTimeout(() => {
+                    gameRoom = {
+                        room_id: 'demo',
+                        is_active: false,
+                        player_count: 1,
+                        players: {},
+                        bastral_id: null
+                    };
+                    updateGameState();
+                }, 1000);
+            };
+        }
+
+        function handleServerMessage(message) {
+            switch (message.type) {
+                case 'room_joined':
+                    gameRoom = message.room_state;
+                    updateGameState();
+                    break;
+                    
+                case 'player_joined':
+                    if (message.player.id !== myPlayerId) {
+                        addPlayer(message.player);
+                    }
+                    gameRoom = message.room_state;
+                    updateGameState();
+                    break;
+                    
+                case 'player_left':
+                    removePlayer(message.player_id);
+                    gameRoom = message.room_state;
+                    updateGameState();
+                    break;
+                    
+                case 'player_moved':
+                    updatePlayerPosition(message.player_id, message.position, message.animation_state);
+                    break;
+                    
+                case 'chat_message':
+                    addChatMessage(message);
+                    break;
+                    
+                case 'game_started':
+                    isGameActive = true;
+                    bastralId = message.bastral_id;
+                    gameStartTime = message.game_start_time;
+                    updateGameState();
+                    showNotification(`Game started! @${message.bastral_username} is the bastral!`);
+                    break;
+                    
+                case 'player_banned':
+                    handlePlayerBanned(message);
+                    break;
+                    
+                case 'new_bastral':
+                    bastralId = message.bastral_id;
+                    updateBastralDisplay();
+                    showNotification(`New @bastral: ${message.bastral_username}`);
+                    break;
+                    
+                case 'game_ended':
+                    isGameActive = false;
+                    if (message.winner_id) {
+                        showNotification(`Game Over! Winner: ${message.winner_username}`);
+                    } else {
+                        showNotification('Game Over! No winner.');
+                    }
+                    updateGameState();
+                    break;
+                    
+                case 'ban_failed':
+                    showNotification(message.reason);
+                    break;
+            }
+        }
+
+        function addPlayer(playerData) {
+            if (players[playerData.id]) {
+                removePlayer(playerData.id);
+            }
+            
+            const playerFigure = createStickFigure(playerData.id, playerData.position, playerData.id === myPlayerId);
+            players[playerData.id] = {
+                data: playerData,
+                figure: playerFigure
+            };
+            scene.add(playerFigure);
+        }
+
+        function removePlayer(playerId) {
+            if (players[playerId]) {
+                scene.remove(players[playerId].figure);
+                delete players[playerId];
+            }
+        }
+
+        function updatePlayerPosition(playerId, position, animationState) {
+            if (players[playerId]) {
+                const player = players[playerId];
+                player.figure.position.set(position.x, position.y, position.z);
+                player.figure.rotation.y = position.rotation_y;
+                
+                // Handle animations
+                if (animationState === 'kicking') {
+                    // Kick animation
+                    const rightLeg = player.figure.children.find(child => 
+                        child.geometry && child.geometry.type === 'CylinderGeometry' && 
+                        child.position.x > 0 && child.position.y < 0
+                    );
+                    if (rightLeg) {
+                        rightLeg.rotation.x = Math.PI / 3;
+                        setTimeout(() => rightLeg.rotation.x = 0, 500);
+                    }
+                } else if (animationState === 'falling') {
+                    // Fall animation
+                    player.figure.rotation.x = Math.PI / 2;
+                    setTimeout(() => {
+                        player.figure.rotation.x = 0;
+                        player.figure.position.y = 0;
+                    }, 1000);
+                }
+            }
+        }
+
+        function updateGameState() {
+            if (!gameRoom) return;
+
+            // Update player count
+            document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
+
+            // Update game status
+            const statusElement = document.getElementById('gameStatus');
+            if (gameRoom.is_active) {
+                statusElement.textContent = 'GAME ACTIVE - Find and ban @bastral!';
+                statusElement.style.color = '#ff6b6b';
+                document.getElementById('startGameBtn').style.display = 'none';
+            } else {
+                statusElement.textContent = 'Waiting for game to start...';
+                statusElement.style.color = '#6bcf7f';
+                if (Object.keys(gameRoom.players || {}).length >= 2) {
+                    document.getElementById('startGameBtn').style.display = 'block';
+                }
+            }
+
+            // Add players to scene
+            for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
+                if (playerId === myPlayerId) {
+                    if (!myPlayer) {
+                        myPlayer = createStickFigure(playerId, playerData.position, true);
+                        scene.add(myPlayer);
+                        
+                        // Follow camera
+                        camera.position.set(
+                            playerData.position.x,
+                            playerData.position.y + 5,
+                            playerData.position.z + 10
+                        );
+                    }
+                } else if (!players[playerId]) {
+                    addPlayer(playerData);
+                }
+            }
+
+            updateBastralDisplay();
+        }
+
+        function updateBastralDisplay() {
+            const bastralElement = document.getElementById('bastralName');
+            if (bastralId && gameRoom && gameRoom.players[bastralId]) {
+                bastralElement.textContent = `@bastral: ${bastralId}`;
+                bastralElement.style.color = '#ffd93d';
+                
+                // Update bastral player color
+                if (players[bastralId]) {
+                    updatePlayerColor(bastralId, 0xffd93d);
+                }
+            } else {
+                bastralElement.textContent = 'No @bastral selected';
+                bastralElement.style.color = '#ccc';
+            }
+        }
+
+        function updatePlayerColor(playerId, color) {
+            if (players[playerId]) {
+                const figure = players[playerId].figure;
+                figure.children.forEach(child => {
+                    if (child.material && child.material.color) {
+                        child.material.color.setHex(color);
+                    }
+                });
+            }
+        }
+
+        function addChatMessage(message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageElement = document.createElement('div');
+            messageElement.className = 'chat-message';
+            
+            if (message.type === 'chat_message') {
+                if (message.message === '/ban @bastral') {
+                    messageElement.className += ' chat-ban';
+                    messageElement.textContent = `${message.username}: ${message.message}`;
+                } else {
+                    messageElement.className += ' chat-player';
+                    messageElement.textContent = `${message.username}: ${message.message}`;
+                }
+            } else {
+                messageElement.className += ' chat-system';
+                messageElement.textContent = message.message || 'System message';
+            }
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Remove old messages
+            while (chatMessages.children.length > 50) {
+                chatMessages.removeChild(chatMessages.firstChild);
+            }
+        }
+
+        function handlePlayerBanned(message) {
+            addChatMessage({
+                type: 'system',
+                message: `${message.banner_username} banned ${message.banned_username}!`
+            });
+            
+            // Visual effect at ban location
+            const geometry = new THREE.RingGeometry(0.5, 2, 16);
+            const material = new THREE.MeshBasicMaterial({ color: 0xff6b6b, transparent: true, opacity: 0.8 });
+            const ring = new THREE.Mesh(geometry, material);
+            ring.position.set(message.position.x, message.position.y + 0.1, message.position.z);
+            ring.rotation.x = -Math.PI / 2;
+            scene.add(ring);
+            
+            // Animate and remove
+            let opacity = 0.8;
+            const fadeOut = setInterval(() => {
+                opacity -= 0.05;
+                material.opacity = opacity;
+                ring.scale.multiplyScalar(1.1);
+                
+                if (opacity <= 0) {
+                    scene.remove(ring);
+                    clearInterval(fadeOut);
+                }
+            }, 50);
+        }
+
+        function showNotification(text) {
+            const notification = document.getElementById('notification');
+            notification.textContent = text;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            handleMovement();
+            
+            if (controls && controls.update) {
+                controls.update();
+            }
+            
+            // Update camera to follow player
+            if (myPlayer) {
+                const targetPosition = new THREE.Vector3(
+                    myPlayer.position.x,
+                    myPlayer.position.y + 8,
+                    myPlayer.position.z + 12
+                );
+                camera.position.lerp(targetPosition, 0.05);
+                
+                if (controls && controls.target) {
+                    controls.target.lerp(myPlayer.position, 0.05);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function handleMovement() {
+            if (!myPlayer) return;
+
+            let moved = false;
+            let newAnimationState = 'idle';
+            const moveVector = new THREE.Vector3();
+
+            if (keys['w']) {
+                moveVector.z -= moveSpeed * 0.016;
+                moved = true;
+                newAnimationState = 'walking';
+            }
+            if (keys['s']) {
+                moveVector.z += moveSpeed * 0.016;
+                moved = true;
+                newAnimationState = 'walking';
+            }
+            if (keys['a']) {
+                moveVector.x -= moveSpeed * 0.016;
+                moved = true;
+                newAnimationState = 'walking';
+            }
+            if (keys['d']) {
+                moveVector.x += moveSpeed * 0.016;
+                moved = true;
+                newAnimationState = 'walking';
+            }
+            if (keys[' ']) {
+                moveVector.y += climbSpeed * 0.016;
+                moved = true;
+                newAnimationState = 'climbing';
+            }
+
+            if (moved && myPlayer) {
+                myPlayer.position.add(moveVector);
+                
+                // Keep player in bounds
+                myPlayer.position.x = Math.max(-20, Math.min(20, myPlayer.position.x));
+                myPlayer.position.y = Math.max(0, Math.min(15, myPlayer.position.y));
+                myPlayer.position.z = Math.max(-15, Math.min(15, myPlayer.position.z));
+
+                // Send position update to server
+                if (websocket) {
+                    websocket.send(JSON.stringify({
+                        type: 'position_update',
+                        data: {
+                            x: myPlayer.position.x,
+                            y: myPlayer.position.y,
+                            z: myPlayer.position.z,
+                            rotation_y: myPlayer.rotation.y,
+                            animation_state: newAnimationState
+                        }
+                    }));
+                }
+            }
+        }
+
+        function setupEventListeners() {
+            // Keyboard controls
+            document.addEventListener('keydown', (event) => {
+                keys[event.key.toLowerCase()] = true;
+            });
+
+            document.addEventListener('keyup', (event) => {
+                keys[event.key.toLowerCase()] = false;
+            });
+
+            // Mobile controls
+            document.getElementById('moveUp').addEventListener('touchstart', () => keys['w'] = true);
+            document.getElementById('moveUp').addEventListener('touchend', () => keys['w'] = false);
+            document.getElementById('moveDown').addEventListener('touchstart', () => keys['s'] = true);
+            document.getElementById('moveDown').addEventListener('touchend', () => keys['s'] = false);
+            document.getElementById('moveLeft').addEventListener('touchstart', () => keys['a'] = true);
+            document.getElementById('moveLeft').addEventListener('touchend', () => keys['a'] = false);
+            document.getElementById('moveRight').addEventListener('touchstart', () => keys['d'] = true);
+            document.getElementById('moveRight').addEventListener('touchend', () => keys['d'] = false);
+            document.getElementById('climb').addEventListener('touchstart', () => keys[' '] = true);
+            document.getElementById('climb').addEventListener('touchend', () => keys[' '] = false);
+
+            // Chat input
+            document.getElementById('chatInput').addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    const message = event.target.value.trim();
+                    if (message && websocket) {
+                        websocket.send(JSON.stringify({
+                            type: 'chat_message',
+                            message: message
+                        }));
+                        event.target.value = '';
+                    }
+                }
+            });
+
+            // Start game button
+            document.getElementById('startGameBtn').addEventListener('click', () => {
+                if (websocket) {
+                    websocket.send(JSON.stringify({ type: 'start_game' });
+                }
+            });
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // Initialize when page loads
+        window.onload = init;
+    </script>
 </body>
 </html>
