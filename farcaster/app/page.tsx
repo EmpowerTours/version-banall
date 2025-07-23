@@ -8,6 +8,7 @@ import { http, createPublicClient } from 'viem';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import Web3 from 'web3';
 
+// Custom Monad Testnet chain
 const monadTestnet = {
   id: Number(process.env.NEXT_PUBLIC_MONAD_CHAIN_ID) || 10143,
   name: 'Monad Testnet',
@@ -22,6 +23,7 @@ const monadTestnet = {
   },
 };
 
+// Wagmi config
 const queryClient = new QueryClient();
 const config = createConfig({
   chains: [monadTestnet],
@@ -846,8 +848,6 @@ function BanallContent() {
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
-  const [banAnimations, setBanAnimations] = useState({});  // For kick animation
-  const [multisynqLoaded, setMultisynqLoaded] = useState(false);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -857,100 +857,12 @@ function BanallContent() {
   }, [isConnected, address, switchChain]);
 
   useEffect(() => {
-    if (window.Multisynq) {
-      setMultisynqLoaded(true);
-    } else {
-      const interval = setInterval(() => {
-        if (window.Multisynq) {
-          setMultisynqLoaded(true);
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
+    if (!toursTokenAddress || toursTokenAddress === '0xYOUR_TOURS_TOKEN_ADDRESS') {
+      console.error('TOURS_TOKEN_ADDRESS is not set. Please configure it in Railway environment variables.');
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    if (!toursTokenAddress || toursTokenAddress === '0xYOUR_TOURS_TOKEN_ADDRESS' || !multisynqLoaded) return;
-
-    const Multisynq = window.Multisynq;
-    Multisynq.Session.join({ apiKey, appId, name: Multisynq.App.autoSession(), password: Multisynq.App.autoPassword(), model: class extends Multisynq.Model {
-      init() {
-        this.players = {};
-        this.bastral = null;
-        this.gameActive = false;
-        this.startTime = 0;
-        this.messages = [];
-        this.botPrompted = false;
-      }
-      addPlayer(wallet, username, isSpectator, farcasterFid) {
-        this.players[wallet] = { username, toursBalance: 0, isBanned: false, isSpectator, farcasterFid: farcasterFid || 0 };
-        this.messages.push(`${username} joined${isSpectator ? ' as BROKIE' : ''}`);
-        this.publish('playerUpdate');
-      }
-      banPlayer(banned, by) {
-        if (this.players[banned] && !this.players[banned].isBanned) {
-          this.players[banned].isBanned = true;
-          this.players[by].toursBalance += 1e18;
-          this.messages.push(`${this.players[by].username} banned ${this.players[banned].username}! +1 $TOURS`);
-          this.bastral = Object.keys(this.players).find(w => !this.players[w].isBanned && !this.players[w].isSpectator) || null;
-          this.publish('playerUpdate');
-          this.publish('banAnimation', { banned });
-        }
-      }
-      startGame(bastral, startTime) {
-        this.gameActive = true;
-        this.startTime = startTime;
-        this.bastral = bastral;
-        this.messages.push('Game started!');
-        this.botPrompted = false;
-        this.publish('gameUpdate');
-      }
-      endGame(winner, pot) {
-        this.gameActive = false;
-        this.startTime = 0;
-        this.bastral = null;
-        this.messages.push(`${this.players[winner].username} won ${pot / 1e18} MON and ${2 * pot / 1e18} $TOURS!`);
-        Object.keys(this.players).forEach(w => { this.players[w].isBanned = false; });
-        this.botPrompted = false;
-        this.publish('gameUpdate');
-      }
-      addBot(id, username) {
-        this.players[id] = { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: 0 };
-        this.messages.push(`${username} (bot) joined`);
-        this.publish('playerUpdate');
-      }
-      checkLobby() {
-        const activePlayers = Object.keys(this.players).filter(w => !this.players[w].isSpectator && !this.players[w].isBanned);
-        if (activePlayers.length === 1 && !this.botPrompted && !this.gameActive) {
-          this.botPrompted = true;
-          this.messages.push('Alone in lobby! Add bots?');
-          this.publish('botPrompt');
-        }
-      }
-    }, view: class extends Multisynq.View {
-      init() {
-        this.subscribe('playerUpdate', () => {
-          setPlayers(this.model.players);
-          setMessages(this.model.messages);
-        });
-        this.subscribe('gameUpdate', () => {
-          setTimeLeft(this.model.gameActive ? Math.max(0, this.model.startTime + 300 - Math.floor(Date.now() / 1000)) : 0);
-          setBastral(this.model.bastral);
-          setGameActive(this.model.gameActive);
-          setBotPrompted(this.model.botPrompted);
-        });
-        this.subscribe('botPrompt', () => setBotPrompted(true));
-        this.subscribe('banAnimation', (data) => {
-          setBanAnimations(prev => ({ ...prev, [data.banned]: true }));
-          setTimeout(() => setBanAnimations(prev => ({ ...prev, [data.banned]: false })), 1000);
-        });
-      }
-    }});
-    setInterval(() => window.Multisynq.Session.publish('checkLobby'), 5000);
-    checkGameState();
     setInterval(checkGameState, 1000);
-  }, [multisynqLoaded]);
+  }, []);
 
   async function connectWallet() {
     try {
@@ -959,23 +871,6 @@ function BanallContent() {
       }
     } catch (error) {
       alert('Wallet connection failed: ' + error.message);
-    }
-  }
-
-  async function banBastral() {
-    if (chatInput === '/ban @bastral') {
-      try {
-        await contract.methods.banBastral().send({
-          from: account,
-          gas: 200000,
-          maxFeePerGas: '2000000000',
-          maxPriorityFeePerGas: '1000000000'
-        });
-        window.Multisynq.Session.model.banPlayer(window.Multisynq.Session.model.bastral, account);
-        setChatInput('');
-      } catch (error) {
-        alert('Ban failed: ' + error.message);
-      }
     }
   }
 
@@ -992,7 +887,11 @@ function BanallContent() {
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      Multisynq.Session.model.addPlayer(account, username, false, farcasterFid);
+      setPlayers(prev => ({
+        ...prev,
+        [account]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0 }
+      }));
+      setMessages(prev => [...prev, `${username} joined`]);
       setUsername('');
       setFarcasterFid('0');
     } catch (error) {
@@ -1082,68 +981,66 @@ function BanallContent() {
   }
 
   return (
-    <SafeAreaContainer insets={context?.client.safeAreaInsets}>
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-4">
-        <img src="/images/empowertours_logo.svg" alt="EmpowerTours Logo" className="animate-pulse mx-auto max-w-[200px]" />
-        <h1 className="text-2xl font-bold text-center">BAN@LL</h1>
-        <p className="text-center mb-4">
-          Join the Web3 Rock Climbing Adventure! <a href="https://t.me/empowertourschat" className="text-blue-500">EmpowerTours Chat</a>
-        </p>
-        <div className="text-center mb-4" style={{ fontSize: '1.5em', fontWeight: 'bold', color: timeLeft <= 5 && timeLeft > 0 ? 'red' : 'black' }}>
-          {timeLeft > 0 ? `Game Time: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Waiting for game...'}
-        </div>
-        <div className="text-center mb-4">{bastral ? `Bastral: ${players[bastral]?.username || 'None'}` : 'No Bastral assigned'}</div>
-        <div className="border p-2 mb-4 h-[60vh] overflow-y-auto">
-          {messages.slice(-50).map((msg, i) => (
-            <div key={i} className="chat-message">{msg}</div>
-          ))}
-          {Object.keys(players).map(wallet => (
-            <div key={wallet} className={`chat-message ${players[wallet].isBanned ? 'banned' : players[wallet].isSpectator ? 'spectator' : ''} ${banAnimations[wallet] ? 'kick-animation' : ''}`}>
-              {players[wallet].username}: {players[wallet].toursBalance / 1e18} $TOURS{players[wallet].farcasterFid ? ` (FID: ${players[wallet].farcasterFid})` : ''} ({wallet.substring(0, 6)}...)
-            </div>
-          ))}
-        </div>
-        <input
-          type="text"
-          placeholder="Set Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full p-2 mb-2 border rounded"
-          disabled={!!players[account]}
-        />
-        <input
-          type="text"
-          placeholder="Farcaster FID (optional)"
-          value={farcasterFid}
-          onChange={(e) => setFarcasterFid(e.target.value)}
-          className="w-full p-2 mb-2 border rounded"
-          disabled={!!players[account]}
-        />
-        <input
-          type="text"
-          placeholder="Type /ban @bastral"
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && banBastral()}
-          className="w-full p-2 mb-2 border rounded"
-          disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
-        />
-        <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
-          {isConnected ? `Connected: ${account?.substring(0, 6)}...` : 'Connect Wallet'}
-        </button>
-        <button onClick={createProfile} className="w-full bg-green-500 text-white p-2 rounded mb-2" disabled={!!players[account]}>
-          Create Profile
-        </button>
-        <button onClick={joinGame} className="w-full bg-purple-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
-          Join Game (1 MON)
-        </button>
-        <button onClick={spectateGame} className="w-full bg-gray-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
-          Spectate
-        </button>
-        <button onClick={addBots} className="w-full bg-yellow-500 text-white p-2 rounded mb-2" disabled={!botPrompted || gameActive}>
-          Add Bots
-        </button>
+    <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-4">
+      <img src="/images/empowertours_logo.svg" alt="EmpowerTours Logo" className="animate-pulse mx-auto max-w-[200px]" />
+      <h1 className="text-2xl font-bold text-center">BAN@LL</h1>
+      <p className="text-center mb-4">
+        Join the Web3 Rock Climbing Adventure! <a href="https://t.me/empowertourschat" className="text-blue-500">EmpowerTours Chat</a>
+      </p>
+      <div className="text-center mb-4" style={{ fontSize: '1.5em', fontWeight: 'bold', color: timeLeft <= 5 && timeLeft > 0 ? 'red' : 'black' }}>
+        {timeLeft > 0 ? `Game Time: ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Waiting for game...'}
       </div>
-    </SafeAreaContainer>
+      <div className="text-center mb-4">{bastral ? `Bastral: ${players[bastral]?.username || 'None'}` : 'No Bastral assigned'}</div>
+      <div className="border p-2 mb-4 h-[60vh] overflow-y-auto">
+        {messages.slice(-50).map((msg, i) => (
+          <div key={i} className="chat-message">{msg}</div>
+        ))}
+        {Object.keys(players).map(wallet => (
+          <div key={wallet} className={`chat-message ${players[wallet].isBanned ? 'banned' : players[wallet].isSpectator ? 'spectator' : ''}`}>
+            {players[wallet].username}: {players[wallet].toursBalance / 1e18} $TOURS{players[wallet].farcasterFid ? ` (FID: ${players[wallet].farcasterFid})` : ''} ({wallet.substring(0, 6)}...)
+          </div>
+        ))}
+      </div>
+      <input
+        type="text"
+        placeholder="Set Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        className="w-full p-2 mb-2 border rounded"
+        disabled={!!players[account]}
+      />
+      <input
+        type="text"
+        placeholder="Farcaster FID (optional)"
+        value={farcasterFid}
+        onChange={(e) => setFarcasterFid(e.target.value)}
+        className="w-full p-2 mb-2 border rounded"
+        disabled={!!players[account]}
+      />
+      <input
+        type="text"
+        placeholder="Type /ban @bastral"
+        value={chatInput}
+        onChange={(e) => setChatInput(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && banBastral()}
+        className="w-full p-2 mb-2 border rounded"
+        disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
+      />
+      <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
+        {isConnected ? `Connected: ${account?.substring(0, 6)}...` : 'Connect Wallet'}
+      </button>
+      <button onClick={createProfile} className="w-full bg-green-500 text-white p-2 rounded mb-2" disabled={!!players[account]}>
+        Create Profile
+      </button>
+      <button onClick={joinGame} className="w-full bg-purple-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
+        Join Game (1 MON)
+      </button>
+      <button onClick={spectateGame} className="w-full bg-gray-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
+        Spectate
+      </button>
+      <button onClick={addBots} className="w-full bg-yellow-500 text-white p-2 rounded mb-2" disabled={!botPrompted || gameActive}>
+        Add Bots
+      </button>
+    </div>
   );
 }
