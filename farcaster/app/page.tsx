@@ -838,11 +838,11 @@ function BanallContent() {
   const multicall = new web3.eth.Contract(multicallABI, multicallAddress);
   const [account, setAccount] = useState<string | null>(null);
   const [players, setPlayers] = useState({});
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [bastral, setBastral] = useState(null);
   const [gameActive, setGameActive] = useState(false);
-  const [botPrompted, setBotPrompted] = useState(false);
+  const [botPrompted, setBotPrompted] = false;
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
