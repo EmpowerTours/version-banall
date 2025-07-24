@@ -46,7 +46,7 @@ export default function Banall() {
 function BanallContent() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const { switchChain } from useSwitchChain();
+  const { switchChain } = useSwitchChain();
 
   console.log('MONAD_RPC_URL:', process.env.NEXT_PUBLIC_MONAD_RPC_URL);
   const web3 = new Web3(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc.ankr.com/monad_testnet');
@@ -832,7 +832,7 @@ function BanallContent() {
     }
   ];
   const multicallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11';
-  const multicallABI = [{"inputs":[{"components":[{"name":"target","type":"address"},{"name":"callData","type":"bytes"}],"name":"calls","type":"tuple[]"}],"name":"aggregate","outputs":[{"name":"blockNumber","type":"uint256"},{"name":"returnData","type":"bytes[]"}],"stateMutability":"view","type":"function"}];
+  const multicallABI = [{"inputs":[{"components":[{"name":"target","type":"address"},{"name":"callData","type":"bytes"}],"name":"calls","type":"tuple[]"}],"name":"aggregate","outputs":[{"name":"blockNumber","type":"uint256"},{"name":"returnData","type":"bytes[]"}],"stateMutability":"view","type": "function"}];
   const contract = new web3.eth.Contract(contractABI, contractAddress);
   const toursContract = new web3.eth.Contract(toursABI, toursTokenAddress);
   const multicall = new web3.eth.Contract(multicallABI, multicallAddress);
@@ -1000,11 +1000,10 @@ function BanallContent() {
         const winner = playersList.find((p, i) => !banned[i] && !spectators[i]);
         if (winner) {
           setMessages(prev => [...prev, `${updatedPlayers[winner].username} won ${results.returnData[0][5] / 1e18} MON and ${2 * results.returnData[0][5] / 1e18} $TOURS!`]);
-          setPlayers(prev => {
-            const newPlayers = { ...prev };
-            Object.keys(newPlayers).forEach(w => { newPlayers[w].isBanned = false; });
-            return newPlayers;
-          });
+          setPlayers(prev => ({
+            ...prev,
+            [winner]: { ...prev[winner], isBanned: false }
+          }));
           setGameActive(false);
           setBastral(null);
           setBotPrompted(false);
