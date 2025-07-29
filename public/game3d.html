@@ -1560,20 +1560,22 @@
             });
 
         function handlePlayerBanAttempt() {
+            console.log('Attempting elimination. Bastral ID:', bastralId, 'My ID:', myPlayerId);
+            
             if (!bastralId || !myPlayer) {
-                showNotification('❌ No bastral to ban!');
+                showNotification('❌ No TARGET to eliminate!');
                 return;
             }
             
             if (myPlayerId === bastralId) {
-                showNotification('❌ You cannot ban yourself!');
+                showNotification('❌ You cannot eliminate yourself, Marine!');
                 return;
             }
             
             let target = null;
             let distance = Infinity;
             
-            // Find the bastral (bot or player)
+            // Find the TARGET (bot or player)
             if (gameMode === 'singleplayer' && bots[bastralId]) {
                 target = bots[bastralId].figure;
                 distance = myPlayer.position.distanceTo(target.position);
@@ -1582,17 +1584,17 @@
                 distance = myPlayer.position.distanceTo(target.position);
             }
             
-            console.log(`Attempting to ban ${bastralId}, distance: ${distance}`);
+            console.log(`Elimination attempt on ${bastralId}, distance: ${distance}`);
             
-            if (distance <= 3) {
-                // Successful ban!
-                showNotification(`💥 You banned @${bastralId}!`);
+            if (distance <= 4) {
+                // Successful elimination!
+                showNotification(`💥 TARGET ELIMINATED: ${bastralId}!`);
                 
                 // Animate kick
                 animateMovement(myPlayer, 'kicking');
                 
                 if (gameMode === 'singleplayer') {
-                    // Handle single player ban
+                    // Handle single player elimination
                     if (bots[bastralId]) {
                         bots[bastralId].isBanned = true;
                         scene.remove(bots[bastralId].figure);
@@ -1601,11 +1603,11 @@
                     }
                 }
                 
-                // Visual effect at ban location
+                // Visual effect at elimination location
                 createBanEffect(target.position);
                 
             } else {
-                showNotification(`❌ Too far from @bastral! Get closer to kick. (Distance: ${distance.toFixed(1)})`);
+                showNotification(`❌ Too far from TARGET! Get closer to eliminate. (Distance: ${distance.toFixed(1)}m)`);
             }
         }
 
