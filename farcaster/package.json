@@ -17,13 +17,19 @@
     "viem": "^2.0.0",
     "@farcaster/miniapp-wagmi-connector": "^1.0.0",
     "@tanstack/react-query": "^5.0.0",
-    "web3": "^4.0.0"
+    "web3": "^4.0.0",
+    "three": "^0.168.0",
+    "pg": "^8.12.0",
+    "lodash": "^4.17.21",
+    "@multisynq/sdk": "latest"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.3",
     "@types/react": "^18.2.0",
     "@types/node": "^20.0.0",
+    "@types/three": "^0.168.0",
+    "@types/lodash": "^4.17.0",
     "typescript": "^5.0.0"
   }
 }
