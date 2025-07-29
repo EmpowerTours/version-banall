@@ -1163,9 +1163,9 @@
             for (let i = 0; i < count; i++) {
                 const botId = botCallsigns[i] || `BOT_${i}`;
                 const spawnPosition = {
-                    x: (Math.random() - 0.5) * 35,
+                    x: (Math.random() - 0.5) * 10, // Reduced from 35 to 10 for camera visibility
                     y: Math.random() * 4 + 1, // Start low on mountain
-                    z: -12 + Math.random() * 6, // Near the icy wall
+                    z: -10 + Math.random() * 4, // Changed from -12+6 to -10+4 for better camera view
                     rotation_y: Math.random() * Math.PI * 2
                 };
                 
