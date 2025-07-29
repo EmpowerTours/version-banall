@@ -942,177 +942,110 @@
         }
 
         function createMarineCombatVeteran(playerId, position, isMe = false, isBot = false) {
-            const group = new THREE.Group();
-            group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
+            console.log(`Creating marine: ${playerId}, isMe: ${isMe}, isBot: ${isBot}`);
             
-            // Determine color scheme based on player type
-            let primaryColor = 0x8b4513; // Military brown
-            let accentColor = 0x556b2f; // Olive drab
-            if (isMe) {
-                primaryColor = 0x8b0000; // Dark red for my marine
-                accentColor = 0xff4500; // Orange red accent
-            } else if (playerId === bastralId) {
-                primaryColor = 0xffd700; // Gold for target
-                accentColor = 0xffff00; // Bright yellow accent
-            } else if (isBot) {
-                primaryColor = 0x2f4f4f; // Dark slate gray for enemy bots
-                accentColor = 0x696969; // Dim gray accent
+            if (!scene) {
+                console.error('Cannot create marine - no 3D scene!');
+                return null;
             }
             
-            const bodyMaterial = new THREE.MeshLambertMaterial({ color: primaryColor });
-            const gearMaterial = new THREE.MeshLambertMaterial({ color: accentColor });
-            const metalMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c }); // Dark metal
-            
-            // MILITARY HELMET with night vision
-            const helmetGeometry = new THREE.SphereGeometry(0.35, 8, 8);
-            const helmetMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f });
-            const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
-            helmet.position.y = 2.9;
-            helmet.castShadow = true;
-            group.add(helmet);
-            
-            // Night vision goggles
-            const nvgGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.2);
-            const nvg = new THREE.Mesh(nvgGeometry, metalMaterial);
-            nvg.position.set(0, 2.95, 0.3);
-            group.add(nvg);
+            try {
+                const group = new THREE.Group();
+                group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
+                
+                // Determine color scheme based on player type
+                let primaryColor = 0x556b2f; // Military olive
+                if (isMe) {
+                    primaryColor = 0x8b0000; // Dark red for my marine
+                } else if (playerId === bastralId) {
+                    primaryColor = 0xffd700; // Gold for target
+                } else if (isBot) {
+                    primaryColor = 0x2f4f4f; // Dark slate gray for enemy bots
+                }
+                
+                const material = new THREE.MeshLambertMaterial({ color: primaryColor });
+                
+                // SIMPLIFIED MARINE BODY
+                const bodyGeometry = new THREE.CapsuleGeometry(0.3, 2.5, 4, 8);
+                const body = new THREE.Mesh(bodyGeometry, material);
+                body.position.y = 1.25;
+                body.castShadow = true;
+                group.add(body);
 
-            // COMBAT VEST/BODY ARMOR
-            const vestGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.3);
-            const vest = new THREE.Mesh(vestGeometry, gearMaterial);
-            vest.position.y = 1.8;
-            vest.castShadow = true;
-            group.add(vest);
+                // HEAD with helmet
+                const headGeometry = new THREE.SphereGeometry(0.4);
+                const helmet = new THREE.Mesh(headGeometry, material);
+                helmet.position.y = 2.8;
+                helmet.castShadow = true;
+                group.add(helmet);
 
-            // MAIN BODY under armor
-            const bodyGeometry = new THREE.CapsuleGeometry(0.15, 1.5, 4, 8);
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 1.0;
-            body.castShadow = true;
-            group.add(body);
+                // ARMS
+                const armGeometry = new THREE.CapsuleGeometry(0.1, 1.2, 4, 8);
+                
+                const leftArm = new THREE.Mesh(armGeometry, material);
+                leftArm.position.set(-0.8, 1.8, 0);
+                leftArm.rotation.z = Math.PI / 8;
+                leftArm.castShadow = true;
+                group.add(leftArm);
+                
+                const rightArm = new THREE.Mesh(armGeometry, material);
+                rightArm.position.set(0.8, 1.8, 0);
+                rightArm.rotation.z = -Math.PI / 8;
+                rightArm.castShadow = true;
+                group.add(rightArm);
 
-            // TACTICAL BACKPACK
-            const backpackGeometry = new THREE.BoxGeometry(0.6, 1.0, 0.4);
-            const backpack = new THREE.Mesh(backpackGeometry, gearMaterial);
-            backpack.position.set(0, 1.8, -0.4);
-            backpack.castShadow = true;
-            group.add(backpack);
+                // LEGS
+                const legGeometry = new THREE.CapsuleGeometry(0.12, 1.4, 4, 8);
+                
+                const leftLeg = new THREE.Mesh(legGeometry, material);
+                leftLeg.position.set(-0.3, 0.0, 0);
+                leftLeg.castShadow = true;
+                group.add(leftLeg);
+                
+                const rightLeg = new THREE.Mesh(legGeometry, material);
+                rightLeg.position.set(0.3, 0.0, 0);
+                rightLeg.castShadow = true;
+                group.add(rightLeg);
 
-            // ARMS with tactical gloves
-            const upperArmGeometry = new THREE.CapsuleGeometry(0.08, 0.9, 4, 8);
-            const forearmGeometry = new THREE.CapsuleGeometry(0.07, 0.8, 4, 8);
-            
-            // Left arm
-            const leftUpperArm = new THREE.Mesh(upperArmGeometry, bodyMaterial);
-            leftUpperArm.position.set(-0.7, 1.9, 0);
-            leftUpperArm.rotation.z = Math.PI / 12;
-            leftUpperArm.castShadow = true;
-            group.add(leftUpperArm);
-            
-            const leftForearm = new THREE.Mesh(forearmGeometry, bodyMaterial);
-            leftForearm.position.set(-1.0, 1.3, 0);
-            leftForearm.rotation.z = Math.PI / 8;
-            leftForearm.castShadow = true;
-            group.add(leftForearm);
-            
-            // Tactical gloves
-            const gloveGeometry = new THREE.SphereGeometry(0.1, 6, 6);
-            const leftGlove = new THREE.Mesh(gloveGeometry, metalMaterial);
-            leftGlove.position.set(-1.2, 0.9, 0);
-            group.add(leftGlove);
-            
-            // Right arm
-            const rightUpperArm = new THREE.Mesh(upperArmGeometry, bodyMaterial);
-            rightUpperArm.position.set(0.7, 1.9, 0);
-            rightUpperArm.rotation.z = -Math.PI / 12;
-            rightUpperArm.castShadow = true;
-            group.add(rightUpperArm);
-            
-            const rightForearm = new THREE.Mesh(forearmGeometry, bodyMaterial);
-            rightForearm.position.set(1.0, 1.3, 0);
-            rightForearm.rotation.z = -Math.PI / 8;
-            rightForearm.castShadow = true;
-            group.add(rightForearm);
-            
-            const rightGlove = new THREE.Mesh(gloveGeometry, metalMaterial);
-            rightGlove.position.set(1.2, 0.9, 0);
-            group.add(rightGlove);
+                // WEAPON (simple rifle)
+                const weaponGeometry = new THREE.BoxGeometry(0.05, 0.05, 1.0);
+                const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
+                const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+                weapon.position.set(0.6, 1.5, 0.3);
+                weapon.rotation.x = -Math.PI / 8;
+                weapon.castShadow = true;
+                group.add(weapon);
 
-            // LEGS with combat boots
-            const upperLegGeometry = new THREE.CapsuleGeometry(0.1, 1.0, 4, 8);
-            const lowerLegGeometry = new THREE.CapsuleGeometry(0.09, 0.9, 4, 8);
-            
-            // Left leg
-            const leftUpperLeg = new THREE.Mesh(upperLegGeometry, bodyMaterial);
-            leftUpperLeg.position.set(-0.3, 0.3, 0);
-            leftUpperLeg.castShadow = true;
-            group.add(leftUpperLeg);
-            
-            const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, bodyMaterial);
-            leftLowerLeg.position.set(-0.3, -0.5, 0);
-            leftLowerLeg.castShadow = true;
-            group.add(leftLowerLeg);
-            
-            // Right leg  
-            const rightUpperLeg = new THREE.Mesh(upperLegGeometry, bodyMaterial);
-            rightUpperLeg.position.set(0.3, 0.3, 0);
-            rightUpperLeg.castShadow = true;
-            group.add(rightUpperLeg);
-            
-            const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, bodyMaterial);
-            rightLowerLeg.position.set(0.3, -0.5, 0);
-            rightLowerLeg.castShadow = true;
-            group.add(rightLowerLeg);
-            
-            // COMBAT BOOTS
-            const bootGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.4);
-            const bootMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
-            
-            const leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
-            leftBoot.position.set(-0.3, -0.95, 0.1);
-            leftBoot.castShadow = true;
-            group.add(leftBoot);
-            
-            const rightBoot = new THREE.Mesh(bootGeometry, bootMaterial);
-            rightBoot.position.set(0.3, -0.95, 0.1);
-            rightBoot.castShadow = true;
-            group.add(rightBoot);
+                // Position the marine
+                group.position.set(position.x, position.y + 1.0, position.z);
+                group.rotation.y = position.rotation_y || 0;
 
-            // TACTICAL WEAPON (assault rifle)
-            const weaponGeometry = new THREE.BoxGeometry(0.05, 0.05, 1.2);
-            const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
-            const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-            weapon.position.set(0.8, 1.5, 0.3);
-            weapon.rotation.x = -Math.PI / 6;
-            weapon.castShadow = true;
-            group.add(weapon);
+                // Add military callsign label
+                const labelText = playerId === bastralId ? `🎯 TARGET: ${playerId}` : 
+                                 isBot ? `🤖 ${playerId}` : 
+                                 isMe ? `🪖 ${username || playerId}` : `🪖 ${playerId}`;
+                const labelColor = playerId === bastralId ? '#ffd700' : 
+                                  isBot ? '#ff4500' : 
+                                  isMe ? '#ff0000' : '#ffffff';
+                
+                const label = createMilitaryLabel(labelText, labelColor);
+                if (label) {
+                    label.position.y = 4.0;
+                    group.add(label);
+                }
 
-            // Position the marine (adjust for boots touching ground)
-            group.position.set(position.x, position.y + 1.0, position.z);
-            group.rotation.y = position.rotation_y || 0;
+                // Store references for animations
+                group.userData.bodyParts = {
+                    helmet, body, leftArm, rightArm, leftLeg, rightLeg, weapon
+                };
 
-            // Add military rank/callsign label
-            const labelText = playerId === bastralId ? `🎯 TARGET: ${username || playerId}` : 
-                             isBot ? `🤖 SGT ${playerId}` : 
-                             isMe ? `🪖 ${username || 'MARINE'}` : `🪖 ${playerId}`;
-            const labelColor = playerId === bastralId ? '#ffd700' : 
-                              isBot ? '#ff4500' : 
-                              isMe ? '#ff0000' : '#ffffff';
-            const label = createMilitaryLabel(labelText, labelColor);
-            label.position.y = 4.0;
-            group.add(label);
-
-            // Store references for animations
-            group.userData.bodyParts = {
-                helmet, vest, body, backpack,
-                leftUpperArm, leftForearm, rightUpperArm, rightForearm,
-                leftUpperLeg, leftLowerLeg, rightUpperLeg, rightLowerLeg,
-                leftBoot, rightBoot, weapon, leftGlove, rightGlove
-            };
-            group.userData.label = label;
-
-            console.log(`Created marine combat veteran: ${playerId} at position:`, position);
-            return group;
+                console.log(`✅ Marine created successfully: ${playerId}`);
+                return group;
+                
+            } catch (error) {
+                console.error(`Failed to create marine ${playerId}:`, error);
+                return null;
+            }
         }
 
         function createMilitaryLabel(text, color = '#ffffff') {
