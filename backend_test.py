@@ -324,6 +324,7 @@ class BanallAPITester:
         }
         ws.send(json.dumps(chat_message))
         self.log("📤 Sent chat message")
+    def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting BAN@LL Backend API Tests")
         self.log(f"   Base URL: {self.base_url}")
@@ -339,6 +340,9 @@ class BanallAPITester:
         
         # Test WebSocket connectivity
         self.test_websocket_connection()
+        
+        # Test game logic via WebSocket
+        self.test_game_logic_websocket()
         
         # Print summary
         self.log("=" * 60)
