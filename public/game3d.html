@@ -304,6 +304,7 @@
         // Game variables
         let scene, camera, renderer, controls;
         let players = {};
+        let bots = {};
         let myPlayerId = null;
         let myPlayer = null;
         let gameRoom = null;
@@ -311,16 +312,104 @@
         let isGameActive = false;
         let bastralId = null;
         let gameStartTime = 0;
+        let gameMode = 'multiplayer'; // 'multiplayer' or 'singleplayer'
+        let username = '';
 
         // Movement variables
         let keys = {};
-        let moveSpeed = 5;
-        let climbSpeed = 3;
+        let moveSpeed = 8;
+        let climbSpeed = 5;
         let isClimbing = false;
 
         // Initialize Telegram Web App
         const WebApp = window.Telegram?.WebApp;
         let userId = null;
+
+        // Show username input first
+        async function showUsernameInput() {
+            const usernameModal = document.createElement('div');
+            usernameModal.id = 'usernameModal';
+            usernameModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 2000;
+                color: white;
+                font-family: Arial, sans-serif;
+            `;
+            
+            usernameModal.innerHTML = `
+                <div style="text-align: center; background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; backdrop-filter: blur(10px);">
+                    <h2 style="color: #ffd93d; margin-bottom: 20px;">🥷 Welcome to BAN@LL!</h2>
+                    <p style="margin-bottom: 20px;">Enter your ninja name:</p>
+                    <input type="text" id="usernameInput" placeholder="Your username..." style="
+                        padding: 15px; 
+                        font-size: 16px; 
+                        border: none; 
+                        border-radius: 10px; 
+                        margin-bottom: 20px; 
+                        width: 250px;
+                        text-align: center;
+                    ">
+                    <br>
+                    <div style="margin: 20px 0;">
+                        <button id="multiplayerBtn" style="
+                            padding: 15px 30px; 
+                            margin: 10px; 
+                            background: #ff6b6b; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 25px; 
+                            font-size: 16px; 
+                            cursor: pointer;
+                        ">🌐 Multiplayer</button>
+                        <button id="singleplayerBtn" style="
+                            padding: 15px 30px; 
+                            margin: 10px; 
+                            background: #6bcf7f; 
+                            color: white; 
+                            border: none; 
+                            border-radius: 25px; 
+                            font-size: 16px; 
+                            cursor: pointer;
+                        ">🤖 Single Player (vs Bots)</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(usernameModal);
+            
+            document.getElementById('usernameInput').focus();
+            
+            document.getElementById('multiplayerBtn').onclick = () => {
+                const input = document.getElementById('usernameInput').value.trim();
+                username = input || 'Player_' + Math.random().toString(36).substr(2, 6);
+                gameMode = 'multiplayer';
+                document.body.removeChild(usernameModal);
+                init();
+            };
+            
+            document.getElementById('singleplayerBtn').onclick = () => {
+                const input = document.getElementById('usernameInput').value.trim();
+                username = input || 'Player_' + Math.random().toString(36).substr(2, 6);
+                gameMode = 'singleplayer';
+                document.body.removeChild(usernameModal);
+                init();
+            };
+            
+            document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('multiplayerBtn').click();
+                }
+            });
+        }
 
         // Initialize game
         async function init() {
