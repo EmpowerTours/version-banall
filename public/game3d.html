@@ -437,6 +437,162 @@
             });
         }
 
+        // Web3 Wallet Connection Functions
+        async function connectWallet() {
+            try {
+                console.log('🔗 Connecting to Monad testnet wallet...');
+                
+                if (typeof window.ethereum !== 'undefined') {
+                    // MetaMask is available
+                    web3 = new Web3(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({ 
+                        method: 'eth_requestAccounts' 
+                    });
+                    
+                    if (accounts.length > 0) {
+                        walletAddress = accounts[0];
+                        console.log('✅ Wallet connected:', walletAddress);
+                        
+                        // Switch to Monad testnet if needed
+                        await switchToMonadNetwork();
+                        
+                        // Update balances
+                        await updateBalances();
+                        
+                        isWalletConnected = true;
+                        showNotification(`🪙 Wallet connected: ${walletAddress.substring(0,6)}...${walletAddress.substring(38)}`);
+                        
+                        return true;
+                    }
+                } else {
+                    // Fallback to WalletConnect
+                    console.log('🔗 Using WalletConnect...');
+                    showNotification('📱 Please scan QR code with your mobile wallet');
+                    
+                    const provider = new WalletConnectProvider({
+                        rpc: {
+                            [window.env.MONAD_CHAIN_ID]: window.env.MONAD_RPC_URL
+                        },
+                        chainId: window.env.MONAD_CHAIN_ID,
+                        bridge: 'https://bridge.walletconnect.org',
+                        qrcode: true,
+                        projectId: window.env.WALLET_CONNECT_PROJECT_ID
+                    });
+                    
+                    await provider.enable();
+                    web3 = new Web3(provider);
+                    
+                    const accounts = await web3.eth.getAccounts();
+                    if (accounts.length > 0) {
+                        walletAddress = accounts[0];
+                        isWalletConnected = true;
+                        showNotification(`📱 Mobile wallet connected: ${walletAddress.substring(0,6)}...`);
+                        return true;
+                    }
+                }
+                
+                return false;
+                
+            } catch (error) {
+                console.error('❌ Wallet connection failed:', error);
+                showNotification('❌ Wallet connection failed. Please try again.');
+                return false;
+            }
+        }
+
+        async function switchToMonadNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: `0x${window.env.MONAD_CHAIN_ID.toString(16)}` }],
+                });
+                console.log('✅ Switched to Monad testnet');
+            } catch (switchError) {
+                // Network not added to MetaMask
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: `0x${window.env.MONAD_CHAIN_ID.toString(16)}`,
+                                chainName: 'Monad Testnet',
+                                nativeCurrency: {
+                                    name: 'MON',
+                                    symbol: 'MON',
+                                    decimals: 18
+                                },
+                                rpcUrls: [window.env.MONAD_RPC_URL],
+                                blockExplorerUrls: ['https://testnet.monadexplorer.com/']
+                            }]
+                        });
+                        console.log('✅ Monad testnet added to MetaMask');
+                    } catch (addError) {
+                        console.error('❌ Failed to add Monad network:', addError);
+                        throw addError;
+                    }
+                }
+            }
+        }
+
+        async function updateBalances() {
+            if (!web3 || !walletAddress) return;
+            
+            try {
+                // Get MON balance
+                const balanceWei = await web3.eth.getBalance(walletAddress);
+                walletBalance = parseFloat(web3.utils.fromWei(balanceWei, 'ether'));
+                
+                // Get TOURS token balance (simplified - would need token contract ABI)
+                // For now, set to 0 - can be implemented later with proper contract integration
+                toursBalance = 0;
+                
+                console.log(`💰 Balances - MON: ${walletBalance.toFixed(4)}, TOURS: ${toursBalance}`);
+                
+            } catch (error) {
+                console.error('❌ Failed to update balances:', error);
+            }
+        }
+
+        async function payEntryFee() {
+            if (!isWalletConnected || !web3 || !walletAddress) {
+                showNotification('❌ Please connect your wallet first');
+                return false;
+            }
+            
+            try {
+                const entryFeeWei = web3.utils.toWei(window.env.ENTRY_FEE_MON, 'ether');
+                
+                if (walletBalance < parseFloat(window.env.ENTRY_FEE_MON)) {
+                    showNotification('❌ Insufficient MON balance for entry fee');
+                    return false;
+                }
+                
+                showNotification('💳 Processing entry fee payment...');
+                
+                const tx = await web3.eth.sendTransaction({
+                    from: walletAddress,
+                    to: window.env.BANALL_CONTRACT_ADDRESS, // Game contract receives entry fees
+                    value: entryFeeWei,
+                    gas: 21000
+                });
+                
+                console.log('✅ Entry fee paid:', tx.transactionHash);
+                showNotification(`✅ Entry fee paid! TX: ${tx.transactionHash.substring(0,10)}...`);
+                
+                // Update balance after payment
+                await updateBalances();
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Entry fee payment failed:', error);
+                showNotification('❌ Entry fee payment failed. Please try again.');
+                return false;
+            }
+        }
+
         // Initialize game
         async function init() {
             try {
