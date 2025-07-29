@@ -879,23 +879,24 @@
                 scene.add(rock);
             }
 
-            // SNOWY GROUND with trenches
-            const groundGeometry = new THREE.PlaneGeometry(80, 80);
+            // MASSIVE SNOWY GROUND for 100+ players
+            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Much larger ground
             const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Pure white snow
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
 
-            // Add trenches and foxholes
-            for (let i = 0; i < 5; i++) {
+            // Add more trenches and foxholes spread across the terrain
+            for (let i = 0; i < 15; i++) { // More trenches for larger area
                 const trenchGeometry = new THREE.BoxGeometry(8, 0.5, 2);
                 const trenchMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown dirt
                 const trench = new THREE.Mesh(trenchGeometry, trenchMaterial);
                 trench.position.set(
-                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.5) * 180, // Spread across larger area
                     -0.2,
-                    Math.random() * 10 + 5
+                    (Math.random() - 0.5) * 180
+                );
                 );
                 trench.receiveShadow = true;
                 scene.add(trench);
