@@ -942,108 +942,133 @@
         }
 
         function createMarineCombatVeteran(playerId, position, isMe = false, isBot = false) {
-            console.log(`Creating marine: ${playerId}, isMe: ${isMe}, isBot: ${isBot}`);
+            console.log(`🪖 CREATING MARINE: ${playerId}, isMe: ${isMe}, isBot: ${isBot}, position:`, position);
             
-            if (!scene) {
-                console.error('Cannot create marine - no 3D scene!');
+            if (!THREE || !scene) {
+                console.error('❌ Cannot create marine - THREE.js or scene not available!');
                 return null;
             }
             
             try {
                 const group = new THREE.Group();
+                group.name = `marine_${playerId}`;
                 group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
                 
-                // Determine color scheme based on player type
-                let primaryColor = 0x556b2f; // Military olive
+                // Determine color scheme
+                let marineColor = 0x556b2f; // Default olive
                 if (isMe) {
-                    primaryColor = 0x8b0000; // Dark red for my marine
+                    marineColor = 0x8b0000; // Dark red for my marine
                 } else if (playerId === bastralId) {
-                    primaryColor = 0xffd700; // Gold for target
+                    marineColor = 0xffd700; // Gold for target
                 } else if (isBot) {
-                    primaryColor = 0x2f4f4f; // Dark slate gray for enemy bots
+                    marineColor = 0x2f4f4f; // Dark gray for enemy bots
                 }
                 
-                const material = new THREE.MeshLambertMaterial({ color: primaryColor });
+                const material = new THREE.MeshLambertMaterial({ color: marineColor });
                 
-                // SIMPLIFIED MARINE BODY
-                const bodyGeometry = new THREE.CapsuleGeometry(0.3, 2.5, 4, 8);
+                // BODY - Main torso (larger and more visible)
+                const bodyGeometry = new THREE.BoxGeometry(0.8, 2.0, 0.6);
                 const body = new THREE.Mesh(bodyGeometry, material);
-                body.position.y = 1.25;
+                body.position.y = 1.0;
                 body.castShadow = true;
                 group.add(body);
+                console.log('✅ Marine body created');
 
-                // HEAD with helmet
-                const headGeometry = new THREE.SphereGeometry(0.4);
-                const helmet = new THREE.Mesh(headGeometry, material);
-                helmet.position.y = 2.8;
-                helmet.castShadow = true;
-                group.add(helmet);
+                // HEAD - Military helmet
+                const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+                const head = new THREE.Mesh(headGeometry, material);
+                head.position.y = 2.3;
+                head.castShadow = true;
+                group.add(head);
+                console.log('✅ Marine head created');
 
-                // ARMS
-                const armGeometry = new THREE.CapsuleGeometry(0.1, 1.2, 4, 8);
+                // ARMS - Left and right
+                const armGeometry = new THREE.BoxGeometry(0.3, 1.2, 0.3);
                 
                 const leftArm = new THREE.Mesh(armGeometry, material);
-                leftArm.position.set(-0.8, 1.8, 0);
-                leftArm.rotation.z = Math.PI / 8;
+                leftArm.position.set(-0.7, 1.0, 0);
                 leftArm.castShadow = true;
                 group.add(leftArm);
                 
                 const rightArm = new THREE.Mesh(armGeometry, material);
-                rightArm.position.set(0.8, 1.8, 0);
-                rightArm.rotation.z = -Math.PI / 8;
+                rightArm.position.set(0.7, 1.0, 0);
                 rightArm.castShadow = true;
                 group.add(rightArm);
+                console.log('✅ Marine arms created');
 
-                // LEGS
-                const legGeometry = new THREE.CapsuleGeometry(0.12, 1.4, 4, 8);
+                // LEGS - Left and right
+                const legGeometry = new THREE.BoxGeometry(0.3, 1.5, 0.3);
                 
                 const leftLeg = new THREE.Mesh(legGeometry, material);
-                leftLeg.position.set(-0.3, 0.0, 0);
+                leftLeg.position.set(-0.3, -0.25, 0);
                 leftLeg.castShadow = true;
                 group.add(leftLeg);
                 
                 const rightLeg = new THREE.Mesh(legGeometry, material);
-                rightLeg.position.set(0.3, 0.0, 0);
+                rightLeg.position.set(0.3, -0.25, 0);
                 rightLeg.castShadow = true;
                 group.add(rightLeg);
+                console.log('✅ Marine legs created');
 
-                // WEAPON (simple rifle)
-                const weaponGeometry = new THREE.BoxGeometry(0.05, 0.05, 1.0);
+                // WEAPON - Rifle
+                const weaponGeometry = new THREE.BoxGeometry(0.1, 0.1, 1.2);
                 const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
                 const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
-                weapon.position.set(0.6, 1.5, 0.3);
+                weapon.position.set(0.6, 1.2, 0.5);
                 weapon.rotation.x = -Math.PI / 8;
                 weapon.castShadow = true;
                 group.add(weapon);
+                console.log('✅ Marine weapon created');
 
-                // Position the marine
+                // Position the marine group
                 group.position.set(position.x, position.y + 1.0, position.z);
                 group.rotation.y = position.rotation_y || 0;
+                
+                // Make sure the marine is visible and large enough
+                group.scale.set(1.2, 1.2, 1.2); // Make 20% larger
+                
+                console.log(`🎯 MARINE POSITIONED AT: (${position.x}, ${position.y + 1.0}, ${position.z})`);
 
-                // Add military callsign label
-                const labelText = playerId === bastralId ? `🎯 TARGET: ${playerId}` : 
+                // Add text label above marine
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                
+                // Background
+                context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Text
+                const labelText = playerId === bastralId ? `🎯 ${playerId}` : 
                                  isBot ? `🤖 ${playerId}` : 
                                  isMe ? `🪖 ${username || playerId}` : `🪖 ${playerId}`;
-                const labelColor = playerId === bastralId ? '#ffd700' : 
-                                  isBot ? '#ff4500' : 
-                                  isMe ? '#ff0000' : '#ffffff';
+                const textColor = playerId === bastralId ? '#ffd700' : 
+                                 isBot ? '#ff4500' : 
+                                 isMe ? '#ff0000' : '#ffffff';
                 
-                const label = createMilitaryLabel(labelText, labelColor);
-                if (label) {
-                    label.position.y = 4.0;
-                    group.add(label);
-                }
+                context.fillStyle = textColor;
+                context.font = 'bold 20px Arial';
+                context.textAlign = 'center';
+                context.fillText(labelText, 128, 40);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+                const label = new THREE.Sprite(labelMaterial);
+                label.position.y = 3.5;
+                label.scale.set(3, 0.75, 1);
+                group.add(label);
+                console.log('✅ Marine label created');
 
                 // Store references for animations
-                group.userData.bodyParts = {
-                    helmet, body, leftArm, rightArm, leftLeg, rightLeg, weapon
-                };
+                group.userData.bodyParts = { body, head, leftArm, rightArm, leftLeg, rightLeg, weapon };
+                group.userData.label = label;
 
-                console.log(`✅ Marine created successfully: ${playerId}`);
+                console.log(`🚁 MARINE ${playerId} CREATED SUCCESSFULLY - READY FOR DEPLOYMENT!`);
                 return group;
                 
             } catch (error) {
-                console.error(`Failed to create marine ${playerId}:`, error);
+                console.error(`💥 FAILED TO CREATE MARINE ${playerId}:`, error);
                 return null;
             }
         }
