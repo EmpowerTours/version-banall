@@ -522,6 +522,12 @@
             try {
                 console.log('Initializing mountain warfare scene...');
                 
+                // Ensure THREE.js is loaded
+                if (typeof THREE === 'undefined') {
+                    console.error('THREE.js not loaded!');
+                    return false;
+                }
+                
                 // Create scene with darker, more atmospheric lighting
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0x4682b4); // Steel blue winter sky
@@ -529,11 +535,13 @@
                 // Create camera
                 camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
                 camera.position.set(0, 15, 25);
+                camera.lookAt(0, 5, -10);
 
                 // Create renderer with enhanced shadows
                 const canvas = document.getElementById('gameCanvas');
                 if (!canvas) {
-                    throw new Error('Game canvas not found!');
+                    console.error('Game canvas not found!');
+                    return false;
                 }
                 
                 renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -542,7 +550,7 @@
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
                 // Enhanced lighting for military atmosphere
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
                 scene.add(ambientLight);
 
                 // Main directional light (harsh winter sun)
@@ -558,19 +566,25 @@
                 rimLight.position.set(-20, 30, -10);
                 scene.add(rimLight);
 
-                // Create mountain warfare environment
-                createMountainEnvironment();
+                // Create mountain warfare environment (simplified for reliability)
+                createSimplifiedMountainEnvironment();
 
-                // Setup camera controls (if available)
+                // Setup basic camera controls
                 if (typeof THREE.OrbitControls !== 'undefined') {
-                    controls = new THREE.OrbitControls(camera, renderer.domElement);
-                    controls.enableDamping = true;
-                    controls.dampingFactor = 0.05;
-                    controls.maxPolarAngle = Math.PI / 2; // Prevent going below ground
-                    controls.minDistance = 5;
-                    controls.maxDistance = 50;
+                    try {
+                        controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        controls.enableDamping = true;
+                        controls.dampingFactor = 0.05;
+                        controls.maxPolarAngle = Math.PI / 2;
+                        controls.minDistance = 5;
+                        controls.maxDistance = 50;
+                    } catch (e) {
+                        console.warn('OrbitControls failed to initialize:', e);
+                        controls = null;
+                    }
                 } else {
-                    console.warn('OrbitControls not available, using basic camera setup');
+                    console.warn('OrbitControls not available');
+                    controls = null;
                 }
                 
                 console.log('Mountain warfare scene initialized successfully!');
@@ -578,11 +592,45 @@
                 
             } catch (error) {
                 console.error('Failed to initialize 3D scene:', error);
-                
-                // Create fallback 2D interface if 3D fails
-                createFallbackInterface();
                 return false;
             }
+        }
+
+        function createSimplifiedMountainEnvironment() {
+            console.log('Creating simplified mountain environment...');
+            
+            // SNOWY GROUND
+            const groundGeometry = new THREE.PlaneGeometry(80, 80);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // ICY CLIMBING WALL
+            const wallGeometry = new THREE.BoxGeometry(40, 25, 3);
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb });
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.position.set(0, 12.5, -15);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            scene.add(wall);
+
+            // Add some basic military equipment
+            for (let i = 0; i < 8; i++) {
+                const equipGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.5);
+                const equipMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f });
+                const equipment = new THREE.Mesh(equipGeometry, equipMaterial);
+                equipment.position.set(
+                    (Math.random() - 0.5) * 60,
+                    0.15,
+                    Math.random() * 15
+                );
+                equipment.castShadow = true;
+                scene.add(equipment);
+            }
+
+            console.log('Simplified mountain environment created successfully!');
         }
 
         function createFallbackInterface() {
