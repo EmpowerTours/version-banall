@@ -204,20 +204,17 @@ class BanallAPITester:
             expected_messages = ['player_joined', 'room_joined']
             received_types = [msg.get('type') for msg in self.websocket_messages]
             
-            if self.websocket_connected and any(msg_type in expected_messages for msg_type in received_types):
+            # Check if we received the expected messages
+            has_expected_messages = any(msg_type in expected_messages for msg_type in received_types)
+            
+            if self.websocket_connected and has_expected_messages:
                 self.tests_passed += 1
                 self.log("✅ WebSocket connection successful")
                 self.log(f"   Received {len(self.websocket_messages)} messages: {received_types}")
-                
-                # Test sending a chat message
-                if len(self.websocket_messages) > 0:
-                    self.log("   Testing chat message functionality...")
-                    # This would require keeping the connection open longer
-                    
                 return True
             else:
                 self.log("❌ WebSocket connection failed or no expected messages received")
-                self.log(f"   Messages received: {received_types}")
+                self.log(f"   Connected: {self.websocket_connected}, Messages: {received_types}")
                 return False
                 
         except Exception as e:
