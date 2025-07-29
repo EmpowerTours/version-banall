@@ -450,76 +450,137 @@
 
         function createStickFigure(playerId, position, isMe = false) {
             const group = new THREE.Group();
+            group.userData = { playerId: playerId, isMe: isMe };
+            
+            // Determine color based on player type
+            let playerColor = 0xffffff; // Default white
+            if (isMe) {
+                playerColor = 0xff6b6b; // Red for my player
+            } else if (playerId === bastralId) {
+                playerColor = 0xffd93d; // Yellow for bastral
+            }
             
             // Body (main torso)
-            const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2);
-            const bodyMaterial = new THREE.MeshLambertMaterial({ 
-                color: isMe ? 0xff6b6b : (playerId === bastralId ? 0xffd93d : 0xffffff) 
-            });
+            const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2.5);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: playerColor });
             const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 1;
+            body.position.y = 1.25;
             body.castShadow = true;
             group.add(body);
 
             // Head
-            const headGeometry = new THREE.SphereGeometry(0.3);
+            const headGeometry = new THREE.SphereGeometry(0.4);
             const head = new THREE.Mesh(headGeometry, bodyMaterial);
-            head.position.y = 2.5;
+            head.position.y = 3.0;
             head.castShadow = true;
             group.add(head);
 
             // Arms
-            const armGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.8);
             
             const leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            leftArm.position.set(-0.7, 1.5, 0);
+            leftArm.position.set(-0.8, 1.8, 0);
             leftArm.rotation.z = Math.PI / 6;
             leftArm.castShadow = true;
             group.add(leftArm);
 
             const rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            rightArm.position.set(0.7, 1.5, 0);
+            rightArm.position.set(0.8, 1.8, 0);
             rightArm.rotation.z = -Math.PI / 6;
             rightArm.castShadow = true;
             group.add(rightArm);
 
             // Legs
-            const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+            const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.8);
             
             const leftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            leftLeg.position.set(-0.3, -0.25, 0);
+            leftLeg.position.set(-0.4, -0.15, 0);
             leftLeg.castShadow = true;
             group.add(leftLeg);
 
             const rightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            rightLeg.position.set(0.3, -0.25, 0);
+            rightLeg.position.set(0.4, -0.15, 0);
             rightLeg.castShadow = true;
             group.add(rightLeg);
 
             // Position the figure
-            group.position.set(position.x, position.y, position.z);
-            group.rotation.y = position.rotation_y;
+            group.position.set(position.x, position.y + 1.0, position.z); // Raise figure above ground
+            group.rotation.y = position.rotation_y || 0;
 
             // Add name label
+            const labelText = playerId === bastralId ? `@${playerId}` : playerId;
+            const labelColor = playerId === bastralId ? '#ffd93d' : (isMe ? '#ff6b6b' : '#ffffff');
+            const label = createPlayerLabel(labelText, labelColor);
+            label.position.y = 4.2;
+            group.add(label);
+
+            // Store references for easy updates
+            group.userData.bodyParts = [body, head, leftArm, rightArm, leftLeg, rightLeg];
+            group.userData.label = label;
+
+            console.log(`Created stick figure for ${playerId} at position:`, position);
+            return group;
+        }
+
+        function createPlayerLabel(text, color = '#ffffff') {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 64;
-            context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            // Background
+            context.fillStyle = 'rgba(0, 0, 0, 0.8)';
             context.fillRect(0, 0, canvas.width, canvas.height);
-            context.fillStyle = 'white';
-            context.font = '24px Arial';
+            
+            // Border
+            context.strokeStyle = color;
+            context.lineWidth = 4;
+            context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+            
+            // Text
+            context.fillStyle = color;
+            context.font = 'bold 48px Arial';
             context.textAlign = 'center';
-            context.fillText(playerId === bastralId ? `@${playerId}` : playerId, 128, 40);
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
 
             const texture = new THREE.CanvasTexture(canvas);
             const labelMaterial = new THREE.SpriteMaterial({ map: texture });
-            const label = new THREE.Sprite(labelMaterial);
-            label.position.y = 3.5;
-            label.scale.set(2, 0.5, 1);
-            group.add(label);
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(4, 1, 1);
+            
+            return sprite;
+        }
 
-            return group;
+        function updatePlayerLabel(playerId, text, isBastral = false) {
+            const player = players[playerId];
+            if (!player || !player.figure) return;
+            
+            const group = player.figure;
+            const oldLabel = group.userData.label;
+            if (oldLabel) {
+                group.remove(oldLabel);
+            }
+            
+            const color = isBastral ? '#ffd93d' : '#ffffff';
+            const newLabel = createPlayerLabel(text, color);
+            newLabel.position.y = 4.2;
+            group.add(newLabel);
+            group.userData.label = newLabel;
+        }
+
+        function updatePlayerColor(playerId, color) {
+            const player = players[playerId];
+            if (!player || !player.figure) return;
+            
+            const bodyParts = player.figure.userData.bodyParts;
+            if (bodyParts) {
+                bodyParts.forEach(part => {
+                    if (part.material && part.material.color) {
+                        part.material.color.setHex(color);
+                    }
+                });
+            }
         }
 
         async function connectToGameServer() {
