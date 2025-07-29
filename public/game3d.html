@@ -2219,10 +2219,33 @@
             });
         }
 
-        // Initialize when page loads
+        // Initialize when page loads - Multiple methods to ensure it starts
         window.onload = () => {
+            console.log('Window onload - starting equipment selection');
             showEquipmentSelection();
         };
+        
+        // Backup initialization methods
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOMContentLoaded - checking if equipment selection started');
+            setTimeout(() => {
+                const equipModal = document.getElementById('equipmentModal');
+                if (!equipModal) {
+                    console.log('Equipment modal not found - starting backup initialization');
+                    showEquipmentSelection();
+                }
+            }, 1000);
+        });
+        
+        // Final fallback after 3 seconds
+        setTimeout(() => {
+            console.log('Final fallback check');
+            const equipModal = document.getElementById('equipmentModal');
+            if (!equipModal) {
+                console.log('Starting final fallback initialization');
+                showEquipmentSelection();
+            }
+        }, 3000);
     </script>
 </body>
 </html>
