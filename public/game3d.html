@@ -1469,54 +1469,77 @@
         }
 
         function updateGameState() {
-            if (!gameRoom) return;
+            if (!gameRoom && gameMode === 'multiplayer') return;
 
             console.log('Updating game state:', gameRoom);
 
-            // Update player count
-            document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
-
-            // Update game status
-            const statusElement = document.getElementById('gameStatus');
-            if (gameRoom.is_active) {
-                statusElement.textContent = 'GAME ACTIVE - Find and ban @bastral!';
-                statusElement.style.color = '#ff6b6b';
-                document.getElementById('startGameBtn').style.display = 'none';
-            } else {
-                statusElement.textContent = 'Waiting for game to start...';
-                statusElement.style.color = '#6bcf7f';
-                if (Object.keys(gameRoom.players || {}).length >= 2) {
+            if (gameMode === 'singleplayer') {
+                // Single player mode
+                document.getElementById('playerCount').textContent = `Players: ${1 + Object.keys(bots).length}`;
+                
+                const statusElement = document.getElementById('gameStatus');
+                if (isGameActive) {
+                    statusElement.textContent = 'SINGLE PLAYER - Find and ban @bastral!';
+                    statusElement.style.color = '#ff6b6b';
+                } else {
+                    statusElement.textContent = 'Single Player Mode - Get Ready!';
+                    statusElement.style.color = '#6bcf7f';
                     document.getElementById('startGameBtn').style.display = 'block';
                 }
-            }
+                
+                // Create my player if not exists
+                if (!myPlayer) {
+                    console.log('Creating my player in single player mode:', myPlayerId);
+                    const myPosition = { x: 0, y: 0, z: -2, rotation_y: 0 };
+                    myPlayer = createNinjaStickFigure(myPlayerId, myPosition, true, false);
+                    scene.add(myPlayer);
+                    
+                    // Set camera to follow player
+                    camera.position.set(0, 5, 10);
+                }
+                
+            } else {
+                // Multiplayer mode
+                document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
 
-            // Spawn/Update all players in the scene
-            for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
-                if (playerId === myPlayerId) {
-                    // Create my player if not exists
-                    if (!myPlayer) {
-                        console.log('Creating my player:', playerId);
-                        myPlayer = createStickFigure(playerId, playerData.position, true);
-                        scene.add(myPlayer);
-                        
-                        // Set camera to follow player
-                        camera.position.set(
-                            playerData.position.x,
-                            playerData.position.y + 5,
-                            playerData.position.z + 10
-                        );
-                    }
+                const statusElement = document.getElementById('gameStatus');
+                if (gameRoom.is_active) {
+                    statusElement.textContent = 'GAME ACTIVE - Find and ban @bastral!';
+                    statusElement.style.color = '#ff6b6b';
+                    document.getElementById('startGameBtn').style.display = 'none';
                 } else {
-                    // Create other players if not exists
-                    if (!players[playerId]) {
-                        console.log('Creating other player:', playerId);
-                        addPlayer(playerData);
+                    statusElement.textContent = 'Waiting for game to start...';
+                    statusElement.style.color = '#6bcf7f';
+                    if (Object.keys(gameRoom.players || {}).length >= 2) {
+                        document.getElementById('startGameBtn').style.display = 'block';
+                    }
+                }
+
+                // Spawn/Update all players in the scene
+                for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
+                    if (playerId === myPlayerId) {
+                        if (!myPlayer) {
+                            console.log('Creating my player:', playerId);
+                            myPlayer = createNinjaStickFigure(playerId, playerData.position, true, false);
+                            scene.add(myPlayer);
+                            
+                            camera.position.set(
+                                playerData.position.x,
+                                playerData.position.y + 5,
+                                playerData.position.z + 10
+                            );
+                        }
+                    } else {
+                        if (!players[playerId]) {
+                            console.log('Creating other player:', playerId);
+                            addPlayer(playerData);
+                        }
                     }
                 }
             }
 
             updateBastralDisplay();
-            console.log('Game state updated. My player exists:', !!myPlayer, 'Other players:', Object.keys(players).length);
+            console.log('Game state updated. My player exists:', !!myPlayer, 'Other players:', Object.keys(players).length, 'Bots:', Object.keys(bots).length);
         }
 
         function updateGameTimer(secondsLeft = null) {
