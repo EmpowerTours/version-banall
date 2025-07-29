@@ -1218,15 +1218,113 @@
             document.getElementById('chatInput').addEventListener('keypress', (event) => {
                 if (event.key === 'Enter') {
                     const message = event.target.value.trim();
-                    if (message && websocket) {
-                        websocket.send(JSON.stringify({
-                            type: 'chat_message',
-                            message: message
-                        }));
+                    if (message) {
+                        console.log('Sending chat message:', message);
+                        
+                        // Handle ban command
+                        if (message.toLowerCase() === '/ban @bastral') {
+                            handlePlayerBanAttempt();
+                        }
+                        
+                        // Send to server (multiplayer) or handle locally (singleplayer)
+                        if (gameMode === 'multiplayer' && websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(JSON.stringify({
+                                type: 'chat_message',
+                                message: message
+                            }));
+                        } else if (gameMode === 'singleplayer') {
+                            // Add to local chat
+                            addChatMessage({
+                                type: 'chat_message',
+                                player_id: myPlayerId,
+                                username: username,
+                                message: message,
+                                timestamp: Date.now() / 1000
+                            });
+                        }
+                        
                         event.target.value = '';
                     }
                 }
             });
+
+        function handlePlayerBanAttempt() {
+            if (!bastralId || !myPlayer) {
+                showNotification('❌ No bastral to ban!');
+                return;
+            }
+            
+            if (myPlayerId === bastralId) {
+                showNotification('❌ You cannot ban yourself!');
+                return;
+            }
+            
+            let target = null;
+            let distance = Infinity;
+            
+            // Find the bastral (bot or player)
+            if (gameMode === 'singleplayer' && bots[bastralId]) {
+                target = bots[bastralId].figure;
+                distance = myPlayer.position.distanceTo(target.position);
+            } else if (players[bastralId]) {
+                target = players[bastralId].figure;
+                distance = myPlayer.position.distanceTo(target.position);
+            }
+            
+            console.log(`Attempting to ban ${bastralId}, distance: ${distance}`);
+            
+            if (distance <= 3) {
+                // Successful ban!
+                showNotification(`💥 You banned @${bastralId}!`);
+                
+                // Animate kick
+                animateMovement(myPlayer, 'kicking');
+                
+                if (gameMode === 'singleplayer') {
+                    // Handle single player ban
+                    if (bots[bastralId]) {
+                        bots[bastralId].isBanned = true;
+                        scene.remove(bots[bastralId].figure);
+                        delete bots[bastralId];
+                        selectNewBastral();
+                    }
+                }
+                
+                // Visual effect at ban location
+                createBanEffect(target.position);
+                
+            } else {
+                showNotification(`❌ Too far from @bastral! Get closer to kick. (Distance: ${distance.toFixed(1)})`);
+            }
+        }
+
+        function createBanEffect(position) {
+            // Create visual effect for successful ban
+            const geometry = new THREE.RingGeometry(0.5, 2, 16);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xff6b6b, 
+                transparent: true, 
+                opacity: 0.8 
+            });
+            const ring = new THREE.Mesh(geometry, material);
+            ring.position.copy(position);
+            ring.position.y += 0.1;
+            ring.rotation.x = -Math.PI / 2;
+            scene.add(ring);
+            
+            // Animate and remove
+            let opacity = 0.8;
+            const fadeOut = setInterval(() => {
+                opacity -= 0.05;
+                material.opacity = opacity;
+                ring.scale.multiplyScalar(1.1);
+                
+                if (opacity <= 0) {
+                    scene.remove(ring);
+                    clearInterval(fadeOut);
+                }
+            }, 50);
+        }
 
             // Start game button
             document.getElementById('startGameBtn').addEventListener('click', () => {
