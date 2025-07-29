@@ -565,13 +565,32 @@
         }
 
         function handleServerMessage(message) {
+            console.log('Received server message:', message.type, message);
+            
             switch (message.type) {
                 case 'room_joined':
                     gameRoom = message.room_state;
+                    console.log('Joined room with state:', gameRoom);
                     updateGameState();
+                    
+                    // Create my player if not exists
+                    if (!myPlayer && gameRoom.players && gameRoom.players[myPlayerId]) {
+                        const myPlayerData = gameRoom.players[myPlayerId];
+                        myPlayer = createStickFigure(myPlayerId, myPlayerData.position, true);
+                        scene.add(myPlayer);
+                        
+                        // Set camera to follow player
+                        camera.position.set(
+                            myPlayerData.position.x,
+                            myPlayerData.position.y + 5,
+                            myPlayerData.position.z + 10
+                        );
+                        console.log('My player created:', myPlayerId);
+                    }
                     break;
                     
                 case 'player_joined':
+                    console.log('Player joined:', message.player.id);
                     if (message.player.id !== myPlayerId) {
                         addPlayer(message.player);
                     }
@@ -580,6 +599,7 @@
                     break;
                     
                 case 'player_left':
+                    console.log('Player left:', message.player_id);
                     removePlayer(message.player_id);
                     gameRoom = message.room_state;
                     updateGameState();
@@ -598,7 +618,13 @@
                     bastralId = message.bastral_id;
                     gameStartTime = message.game_start_time;
                     updateGameState();
-                    showNotification(`Game started! @${message.bastral_username} is the bastral!`);
+                    showNotification(`🎯 Game Started! @${message.bastral_username} is the bastral!`);
+                    
+                    // Update bastral appearance
+                    if (players[bastralId]) {
+                        updatePlayerColor(bastralId, 0xffd93d);
+                        updatePlayerLabel(bastralId, `@${bastralId}`, true);
+                    }
                     break;
                     
                 case 'player_banned':
@@ -608,21 +634,45 @@
                 case 'new_bastral':
                     bastralId = message.bastral_id;
                     updateBastralDisplay();
-                    showNotification(`New @bastral: ${message.bastral_username}`);
+                    showNotification(`🎯 New @bastral: ${message.bastral_username}`);
+                    
+                    // Update all players' appearance
+                    Object.keys(players).forEach(playerId => {
+                        if (playerId === bastralId) {
+                            updatePlayerColor(playerId, 0xffd93d);
+                            updatePlayerLabel(playerId, `@${playerId}`, true);
+                        } else {
+                            updatePlayerColor(playerId, 0xffffff);
+                            updatePlayerLabel(playerId, playerId, false);
+                        }
+                    });
                     break;
                     
                 case 'game_ended':
                     isGameActive = false;
                     if (message.winner_id) {
-                        showNotification(`Game Over! Winner: ${message.winner_username}`);
+                        showNotification(`🏆 Game Over! Winner: ${message.winner_username}`);
                     } else {
-                        showNotification('Game Over! No winner.');
+                        showNotification('💀 Game Over! No winner.');
                     }
                     updateGameState();
+                    
+                    // Reset all players to normal appearance
+                    Object.keys(players).forEach(playerId => {
+                        updatePlayerColor(playerId, 0xffffff);
+                        updatePlayerLabel(playerId, playerId, false);
+                    });
                     break;
                     
                 case 'ban_failed':
-                    showNotification(message.reason);
+                    showNotification(`❌ ${message.reason}`);
+                    break;
+                    
+                case 'game_countdown':
+                    updateGameTimer(message.seconds_left);
+                    if (message.seconds_left <= 5) {
+                        showNotification(`⏰ Game starting in ${message.seconds_left}...`);
+                    }
                     break;
             }
         }
