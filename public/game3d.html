@@ -1697,8 +1697,34 @@
             renderer.render(scene, camera);
         }
 
+        function addPlayer(playerData) {
+            if (players[playerData.id]) {
+                removePlayer(playerData.id);
+            }
+            
+            const playerFigure = createNinjaStickFigure(playerData.id, playerData.position, playerData.id === myPlayerId, false);
+            players[playerData.id] = {
+                data: playerData,
+                figure: playerFigure
+            };
+            scene.add(playerFigure);
+        }
+
+        function updatePlayerColor(playerId, color) {
+            const player = players[playerId];
+            if (!player || !player.figure) return;
+            
+            player.figure.children.forEach(child => {
+                if (child.material && child.material.color && child.type === 'Mesh') {
+                    child.material.color.setHex(color);
+                }
+            });
+        }
+
         // Initialize when page loads
-        window.onload = init;
+        window.onload = () => {
+            showUsernameInput();
+        };
     </script>
 </body>
 </html>
