@@ -825,30 +825,38 @@
         }
 
         function createMountainEnvironment() {
-            // SNOWY MOUNTAIN TERRAIN
-            const mountainGeometry = new THREE.ConeGeometry(25, 30, 8);
+            // MASSIVE MT EVEREST-STYLE TERRAIN for 100+ players
+            const mountainGeometry = new THREE.ConeGeometry(80, 60, 12); // Much larger mountain
             const mountainMaterial = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 }); // Snow white
             const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
-            mountain.position.set(0, 15, -20);
+            mountain.position.set(0, 30, -40); // Moved back further
             mountain.castShadow = true;
             mountain.receiveShadow = true;
             scene.add(mountain);
 
-            // ICY CLIMBING WALL - Main combat area
-            const wallGeometry = new THREE.BoxGeometry(40, 25, 3);
-            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb }); // Icy blue
-            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-            wall.position.set(0, 12.5, -15);
-            wall.castShadow = true;
-            wall.receiveShadow = true;
-            scene.add(wall);
+            // MULTIPLE ICY CLIMBING WALLS - Combat areas spread across the mountain
+            for (let i = 0; i < 5; i++) {
+                const wallGeometry = new THREE.BoxGeometry(30, 20, 2);
+                const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb }); // Icy blue
+                const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                const angle = (i / 5) * Math.PI * 2;
+                wall.position.set(
+                    Math.cos(angle) * 25, // Circular arrangement
+                    10 + Math.random() * 8,
+                    Math.sin(angle) * 25 - 20
+                );
+                wall.rotation.y = angle;
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                scene.add(wall);
+            }
 
-            // Add ice patches and rocky outcrops
-            for (let i = 0; i < 30; i++) {
+            // Add ice patches and rocky outcrops across the larger terrain
+            for (let i = 0; i < 80; i++) { // More rocks for larger environment
                 const rockGeometry = new THREE.BoxGeometry(
-                    Math.random() * 2 + 0.5,
-                    Math.random() * 1.5 + 0.3, 
-                    Math.random() * 1 + 0.2
+                    Math.random() * 3 + 0.5, // Slightly larger rocks
+                    Math.random() * 2 + 0.3, 
+                    Math.random() * 1.5 + 0.2
                 );
                 const isIce = Math.random() > 0.6;
                 const rockMaterial = new THREE.MeshLambertMaterial({ 
@@ -857,9 +865,9 @@
                 const rock = new THREE.Mesh(rockGeometry, rockMaterial);
                 
                 rock.position.set(
-                    (Math.random() - 0.5) * 35,
-                    Math.random() * 20 + 2,
-                    -15 + Math.random() * 2
+                    (Math.random() - 0.5) * 120, // Much wider spread for 100+ players
+                    Math.random() * 25 + 2,
+                    (Math.random() - 0.5) * 80 // Deeper terrain
                 );
                 rock.rotation.set(
                     Math.random() * Math.PI,
