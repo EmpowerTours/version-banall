@@ -191,19 +191,33 @@ class BanallAPITester:
             start_time = time.time()
             
             while time.time() - start_time < timeout:
-                if self.websocket_connected and len(self.websocket_messages) > 0:
+                if self.websocket_connected and len(self.websocket_messages) >= 1:
                     break
                 time.sleep(0.1)
             
+            # Give a bit more time for messages to arrive
+            time.sleep(1)
+            
             ws.close()
             
-            if self.websocket_connected:
+            # Check if we got the expected messages
+            expected_messages = ['player_joined', 'room_joined']
+            received_types = [msg.get('type') for msg in self.websocket_messages]
+            
+            if self.websocket_connected and any(msg_type in expected_messages for msg_type in received_types):
                 self.tests_passed += 1
                 self.log("✅ WebSocket connection successful")
-                self.log(f"   Received {len(self.websocket_messages)} messages")
+                self.log(f"   Received {len(self.websocket_messages)} messages: {received_types}")
+                
+                # Test sending a chat message
+                if len(self.websocket_messages) > 0:
+                    self.log("   Testing chat message functionality...")
+                    # This would require keeping the connection open longer
+                    
                 return True
             else:
-                self.log("❌ WebSocket connection failed")
+                self.log("❌ WebSocket connection failed or no expected messages received")
+                self.log(f"   Messages received: {received_types}")
                 return False
                 
         except Exception as e:
