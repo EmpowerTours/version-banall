@@ -943,7 +943,7 @@
                 for (let i = 1; i < positions.length; i += 3) {
                     positions[i] -= 0.1; // Fall down
                     if (positions[i] < -10) {
-                        positions[i] = 100; // Reset to top
+                        positions[i] = 150; // Reset higher for bigger environment
                     }
                 }
                 snow.geometry.attributes.position.needsUpdate = true;
