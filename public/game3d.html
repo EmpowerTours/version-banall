@@ -1130,7 +1130,7 @@
                 removePlayer(playerData.id);
             }
             
-            const playerFigure = createStickFigure(playerData.id, playerData.position, playerData.id === myPlayerId);
+            const playerFigure = createNinjaStickFigure(playerData.id, playerData.position, playerData.id === myPlayerId, false);
             players[playerData.id] = {
                 data: playerData,
                 figure: playerFigure
