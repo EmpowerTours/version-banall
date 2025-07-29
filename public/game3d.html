@@ -1335,16 +1335,16 @@
                     // Create my player if not exists
                     if (!myPlayer && gameRoom.players && gameRoom.players[myPlayerId]) {
                         const myPlayerData = gameRoom.players[myPlayerId];
-                        myPlayer = createNinjaStickFigure(myPlayerId, myPlayerData.position, true, false);
+                        myPlayer = createMarineCombatVeteran(myPlayerId, myPlayerData.position, true, false);
                         scene.add(myPlayer);
                         
                         // Set camera to follow player
                         camera.position.set(
                             myPlayerData.position.x,
-                            myPlayerData.position.y + 5,
-                            myPlayerData.position.z + 10
+                            myPlayerData.position.y + 8,
+                            myPlayerData.position.z + 15
                         );
-                        console.log('My player created:', myPlayerId);
+                        console.log('My marine deployed:', myPlayerId);
                     }
                     break;
                     
