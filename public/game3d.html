@@ -430,6 +430,8 @@
         // Initialize game
         async function init() {
             try {
+                console.log('Initializing mountain warfare game...');
+                
                 // Get Telegram user info
                 if (WebApp) {
                     WebApp.ready();
@@ -442,28 +444,49 @@
                 }
                 
                 if (!userId) {
-                    userId = 'demo_' + Math.random().toString(36).substr(2, 9);
+                    userId = 'marine_' + Math.random().toString(36).substr(2, 9);
                     myPlayerId = userId;
                 }
+
+                console.log('Marine ID assigned:', myPlayerId);
 
                 // Initialize 3D scene
                 initScene();
                 
-                // Connect to game server
-                await connectToGameServer();
+                // Connect to game server (only in multiplayer mode)
+                if (gameMode === 'multiplayer') {
+                    await connectToGameServer();
+                } else {
+                    console.log('Single player mode - skipping server connection');
+                    // Initialize game room for single player
+                    gameRoom = {
+                        room_id: 'solo_mission',
+                        is_active: false,
+                        player_count: 1,
+                        players: {},
+                        bastral_id: null
+                    };
+                }
                 
                 // Setup event listeners
                 setupEventListeners();
+                
+                // Update initial game state
+                updateGameState();
                 
                 // Start game loop
                 animate();
                 
                 // Hide loading screen
-                document.getElementById('loadingScreen').style.display = 'none';
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                    console.log('Loading screen hidden - game ready!');
+                }
                 
             } catch (error) {
-                console.error('Failed to initialize game:', error);
-                showNotification('Failed to load game. Please refresh.');
+                console.error('Failed to initialize mountain warfare game:', error);
+                showNotification('Failed to deploy to mountain base. Please refresh.');
             }
         }
 
