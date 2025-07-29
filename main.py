@@ -1525,28 +1525,16 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
             message = json.loads(data)
             
             if message["type"] == "position_update":
-                # Handle position updates
-                pass
+                await game_manager.update_player_position(player_id, message["data"])
             elif message["type"] == "chat_message":
                 await game_manager.handle_chat_message(player_id, message["message"])
             elif message["type"] == "start_game":
-                # Start game logic
+                # Start game with countdown
                 room_id = game_manager.player_to_room.get(player_id, "main")
                 room = game_manager.rooms.get(room_id)
                 if room and len(room.players) >= 2:
-                    room.is_active = True
-                    room.game_start_time = time.time()
-                    import random
-                    bastral = random.choice(list(room.players.values()))
-                    room.bastral_id = bastral.id
-                    bastral.is_bastral = True
-                    
-                    await game_manager.broadcast_to_room(room_id, {
-                        "type": "game_started",
-                        "bastral_id": bastral.id,
-                        "bastral_username": bastral.username,
-                        "game_start_time": room.game_start_time
-                    })
+                    # Start countdown in background
+                    asyncio.create_task(game_manager.start_game_countdown(room_id, 10))
                     
     except WebSocketDisconnect:
         await game_manager.remove_player(player_id)
