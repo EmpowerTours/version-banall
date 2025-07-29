@@ -1005,6 +1005,35 @@
                 });
             });
             
+            // Wallet connection handler
+            document.getElementById('connectWalletBtn').onclick = async () => {
+                const connectBtn = document.getElementById('connectWalletBtn');
+                const walletStatus = document.getElementById('walletStatus');
+                
+                connectBtn.textContent = '🔄 CONNECTING...';
+                connectBtn.disabled = true;
+                
+                const connected = await connectWallet();
+                
+                if (connected) {
+                    connectBtn.textContent = '✅ WALLET CONNECTED';
+                    connectBtn.style.background = 'linear-gradient(45deg, #32cd32, #90ee90)';
+                    walletStatus.innerHTML = `
+                        <p style="color: #32cd32;">✅ Connected: ${walletAddress.substring(0,6)}...${walletAddress.substring(38)}</p>
+                        <p style="color: #ffd700;">💰 Balance: ${walletBalance.toFixed(4)} MON</p>
+                        <p style="color: #87ceeb;">Ready for combat deployment!</p>
+                    `;
+                } else {
+                    connectBtn.textContent = '❌ CONNECTION FAILED';
+                    connectBtn.style.background = 'linear-gradient(45deg, #dc143c, #ff6b6b)';
+                    connectBtn.disabled = false;
+                    setTimeout(() => {
+                        connectBtn.textContent = '🔗 CONNECT WALLET';
+                        connectBtn.style.background = 'linear-gradient(45deg, #ffd700, #ffed4e)';
+                    }, 3000);
+                }
+            };
+            
             document.getElementById('startMissionBtn').onclick = () => {
                 window.selectedEquipment = selectedEquipment;
                 document.body.removeChild(equipModal);
