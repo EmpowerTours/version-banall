@@ -491,57 +491,122 @@
         }
 
         function initScene() {
-            // Create scene with darker, more atmospheric lighting
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x4682b4); // Steel blue winter sky
+            try {
+                console.log('Initializing mountain warfare scene...');
+                
+                // Create scene with darker, more atmospheric lighting
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x4682b4); // Steel blue winter sky
 
-            // Create camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 15, 25);
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 15, 25);
 
-            // Create renderer with enhanced shadows
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                // Create renderer with enhanced shadows
+                const canvas = document.getElementById('gameCanvas');
+                if (!canvas) {
+                    throw new Error('Game canvas not found!');
+                }
+                
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-            // Enhanced lighting for military atmosphere
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.3); // Darker ambient
-            scene.add(ambientLight);
+                // Enhanced lighting for military atmosphere
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+                scene.add(ambientLight);
 
-            // Main directional light (harsh winter sun)
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(30, 50, 20);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 4096;
-            directionalLight.shadow.mapSize.height = 4096;
-            directionalLight.shadow.camera.near = 0.1;
-            directionalLight.shadow.camera.far = 200;
-            directionalLight.shadow.camera.left = -50;
-            directionalLight.shadow.camera.right = 50;
-            directionalLight.shadow.camera.top = 50;
-            directionalLight.shadow.camera.bottom = -50;
-            scene.add(directionalLight);
+                // Main directional light (harsh winter sun)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(30, 50, 20);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                scene.add(directionalLight);
 
-            // Cold blue rim light for atmosphere
-            const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
-            rimLight.position.set(-20, 30, -10);
-            scene.add(rimLight);
+                // Cold blue rim light for atmosphere
+                const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
+                rimLight.position.set(-20, 30, -10);
+                scene.add(rimLight);
 
-            // Create mountain warfare environment
-            createMountainEnvironment();
+                // Create mountain warfare environment
+                createMountainEnvironment();
 
-            // Setup camera controls (if available)
-            if (typeof THREE.OrbitControls !== 'undefined') {
-                controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.05;
-                controls.maxPolarAngle = Math.PI / 2; // Prevent going below ground
-                controls.minDistance = 5;
-                controls.maxDistance = 50;
-            } else {
-                console.warn('OrbitControls not available, using basic camera setup');
+                // Setup camera controls (if available)
+                if (typeof THREE.OrbitControls !== 'undefined') {
+                    controls = new THREE.OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+                    controls.maxPolarAngle = Math.PI / 2; // Prevent going below ground
+                    controls.minDistance = 5;
+                    controls.maxDistance = 50;
+                } else {
+                    console.warn('OrbitControls not available, using basic camera setup');
+                }
+                
+                console.log('Mountain warfare scene initialized successfully!');
+                return true;
+                
+            } catch (error) {
+                console.error('Failed to initialize 3D scene:', error);
+                
+                // Create fallback 2D interface if 3D fails
+                createFallbackInterface();
+                return false;
             }
+        }
+
+        function createFallbackInterface() {
+            console.log('Creating fallback 2D interface...');
+            
+            const canvas = document.getElementById('gameCanvas');
+            canvas.style.background = 'linear-gradient(135deg, #2c3e50 0%, #4a6741 100%)';
+            
+            // Add fallback message
+            const fallbackDiv = document.createElement('div');
+            fallbackDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                text-align: center;
+                font-family: 'Courier New', monospace;
+                z-index: 10;
+            `;
+            fallbackDiv.innerHTML = `
+                <h2 style="color: #ffd700;">🪖 TACTICAL OPERATIONS CENTER</h2>
+                <p>3D environment unavailable - Operating in 2D mode</p>
+                <p>Marine deployment and combat systems active</p>
+                <div style="margin-top: 20px;">
+                    <button onclick="forceContinue()" style="
+                        padding: 15px 30px; 
+                        background: #8b0000; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 5px; 
+                        cursor: pointer;
+                        font-family: 'Courier New', monospace;
+                    ">CONTINUE OPERATION</button>
+                </div>
+            `;
+            
+            document.getElementById('gameContainer').appendChild(fallbackDiv);
+            
+            // Global function for the button
+            window.forceContinue = function() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                fallbackDiv.style.display = 'none';
+                
+                // Enable fallback game mode
+                updateGameState();
+                
+                showNotification('🪖 2D Tactical Mode Active - Marine ready for deployment!');
+            };
         }
 
         // Equipment Selection System
