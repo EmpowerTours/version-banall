@@ -1921,16 +1921,17 @@
 
         function updateBastralDisplay() {
             const bastralElement = document.getElementById('bastralName');
-            if (bastralId && gameRoom && gameRoom.players[bastralId]) {
-                bastralElement.textContent = `@bastral: ${bastralId}`;
-                bastralElement.style.color = '#ffd93d';
-                
-                // Update bastral player color
-                if (players[bastralId]) {
-                    updatePlayerColor(bastralId, 0xffd93d);
-                }
+            if (bastralId && gameRoom && gameRoom.players && gameRoom.players[bastralId]) {
+                bastralElement.textContent = `🎯 TARGET: ${bastralId}`;
+                bastralElement.style.color = '#ffd700';
+            } else if (bastralId && gameMode === 'singleplayer' && bots[bastralId]) {
+                bastralElement.textContent = `🎯 TARGET: ${bastralId}`;
+                bastralElement.style.color = '#ffd700';
+            } else if (bastralId && bastralId === myPlayerId) {
+                bastralElement.textContent = `⚠️ YOU ARE THE TARGET`;
+                bastralElement.style.color = '#ff0000';
             } else {
-                bastralElement.textContent = 'No @bastral selected';
+                bastralElement.textContent = 'NO TARGET DESIGNATED';
                 bastralElement.style.color = '#ccc';
             }
         }
