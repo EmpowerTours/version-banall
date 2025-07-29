@@ -1,12 +1,24 @@
 "use client";
 
 import SafeAreaContainer from '../components/SafeAreaContainer';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { WagmiConfig, createConfig, useAccount, useConnect, useSwitchChain } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, createPublicClient } from 'viem';
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import Web3 from 'web3';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { Pool } from 'pg';
+import debounce from 'lodash/debounce'; // For lag prevention
+import { Multisynq } from '@multisynq/sdk';
+
+// Postgres pool
+const pgPool = new Pool({ connectionString: 'postgresql://postgres:ZeyMkvenyYVjKQeOmMzTlCUuHLZOUWiy@gondola.proxy.rlwy.net:5432/railway' });
+
+// Multisynq init
+const multisynq = new Multisynq({ apiKey: '2UPB8vM6BUPmKqgPaBN1Trg89GfX6qzddlZZ270GFJ' });
+const room = multisynq.room('banall-chat');
 
 // Custom Monad Testnet chain
 const monadTestnet = {
@@ -41,6 +53,15 @@ export default function Banall() {
       </QueryClientProvider>
     </WagmiConfig>
   );
+}
+
+interface Player {
+  username: string;
+  toursBalance: number;
+  isBanned: boolean;
+  isSpectator: boolean;
+  farcasterFid: number;
+  position: [number, number, number]; // For 3D
 }
 
 function BanallContent() {
@@ -837,15 +858,17 @@ function BanallContent() {
   const toursContract = new web3.eth.Contract(toursABI, toursTokenAddress);
   const multicall = new web3.eth.Contract(multicallABI, multicallAddress);
   const [account, setAccount] = useState<string | null>(null);
-  const [players, setPlayers] = useState({});
+  const [players, setPlayers] = useState<Record<string, Player>>({});
   const [messages, setMessages] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [bastral, setBastral] = useState(null);
+  const [bastral, setBastral] = useState<string | null>(null);
   const [gameActive, setGameActive] = useState(false);
   const [botPrompted, setBotPrompted] = useState(false);
   const [username, setUsername] = useState('');
   const [farcasterFid, setFarcasterFid] = useState('0');
   const [chatInput, setChatInput] = useState('');
+  const threeRef = useRef<HTMLDivElement>(null);
+  const bots: NodeJS.Timeout[] = []; // For bot intervals
 
   useEffect(() => {
     if (isConnected && address) {
@@ -859,8 +882,56 @@ function BanallContent() {
       console.error('TOURS_TOKEN_ADDRESS is not set. Please configure it in Railway environment variables.');
       return;
     }
-    setInterval(checkGameState, 1000);
+    const interval = setInterval(checkGameState, 1000);
+    init3D(); // Init Three.js
+    room.join();
+    room.on('message', (data) => {
+      if (data.type === 'state') setPlayers(data.players);
+    });
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (botPrompted && !gameActive) addBots(5); // Auto-add 5 bots if prompted
+  }, [botPrompted, gameActive]);
+
+  function init3D() {
+    if (!threeRef.current) return;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth / 2, window.innerHeight / 2); // Half size for embed
+    threeRef.current.appendChild(renderer.domElement);
+    new OrbitControls(camera, renderer.domElement);
+    camera.position.set(0, 50, 100);
+
+    // Terrain
+    const geometry = new THREE.PlaneGeometry(2000, 2000, 128, 128);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const terrain = new THREE.Mesh(geometry, material);
+    for (let i = 0; i < geometry.attributes.position.count; i++) {
+      const x = geometry.attributes.position.array[i * 3];
+      const z = geometry.attributes.position.array[i * 3 + 2];
+      geometry.attributes.position.array[i * 3 + 1] = Math.sin(x / 50) * 50 + Math.cos(z / 50) * 50;
+    }
+    geometry.computeVertexNormals();
+    scene.add(terrain);
+
+    // Marines (LOD stub)
+    Object.entries(players).forEach(([wallet, player]) => {
+      const geo = new THREE.BoxGeometry(5, 10, 5);
+      const mat = new THREE.MeshStandardMaterial({ color: player.isBanned ? 0xff0000 : 0x00ff00 });
+      const marine = new THREE.Mesh(geo, mat);
+      marine.position.set(...player.position);
+      scene.add(marine);
+    });
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    };
+    animate();
+  }
 
   async function connectWallet() {
     try {
@@ -868,7 +939,7 @@ function BanallContent() {
         connect({ connector: connectors[0] });
       }
     } catch (error) {
-      alert('Wallet connection failed: ' + error.message);
+      alert('Wallet connection failed: ' + (error as Error).message);
     }
   }
 
@@ -885,15 +956,18 @@ function BanallContent() {
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      setPlayers(prev => ({
+      const position = [Math.random() * 2000 - 1000, 0, Math.random() * 2000 - 1000];
+      setPlayers((prev) => ({
         ...prev,
-        [account!]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0 }
+        [account!]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0, position },
       }));
-      setMessages(prev => [...prev, `${username} joined`]);
+      await pgPool.query('INSERT INTO users (wallet, username) VALUES ($1, $2)', [account, username]);
+      setMessages((prev) => [...prev, `${username} joined`]);
       setUsername('');
       setFarcasterFid('0');
+      room.send({ type: 'state', players });
     } catch (error) {
-      alert('Profile creation failed: ' + error.message);
+      alert('Profile creation failed: ' + (error as Error).message);
     }
   }
 
@@ -906,13 +980,15 @@ function BanallContent() {
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      setPlayers(prev => ({
+      setPlayers((prev) => ({
         ...prev,
-        [account!]: { ...prev[account!], isSpectator: false }
+        [account!]: { ...prev[account!], isSpectator: false },
       }));
-      setMessages(prev => [...prev, `${players[account!]?.username} joined the game`]);
+      await pgPool.query('UPDATE users SET is_spectator = FALSE WHERE wallet = $1', [account]);
+      setMessages((prev) => [...prev, `${players[account!]?.username} joined the game`]);
+      room.send({ type: 'state', players });
     } catch (error) {
-      alert('Join game failed: ' + error.message);
+      alert('Join game failed: ' + (error as Error).message);
     }
   }
 
@@ -924,18 +1000,20 @@ function BanallContent() {
         maxFeePerGas: '2000000000',
         maxPriorityFeePerGas: '1000000000'
       });
-      setPlayers(prev => ({
+      setPlayers((prev) => ({
         ...prev,
-        [account!]: { ...prev[account!], isSpectator: true }
+        [account!]: { ...prev[account!], isSpectator: true },
       }));
-      setMessages(prev => [...prev, `${players[account!]?.username} joined as spectator`]);
+      await pgPool.query('UPDATE users SET is_spectator = TRUE WHERE wallet = $1', [account]);
+      setMessages((prev) => [...prev, `${players[account!]?.username} joined as spectator`]);
+      room.send({ type: 'state', players });
     } catch (error) {
-      alert('Spectate failed: ' + error.message);
+      alert('Spectate failed: ' + (error as Error).message);
     }
   }
 
-  async function banBastral() {
-    if (chatInput === '/ban @bastral') {
+  const debouncedBan = debounce(async () => {
+    if (chatInput === '/ban @bastral' && bastral) {
       try {
         await contract.methods.banBastral().send({
           from: account!,
@@ -943,33 +1021,52 @@ function BanallContent() {
           maxFeePerGas: '2000000000',
           maxPriorityFeePerGas: '1000000000'
         });
-        setPlayers(prev => ({
+        setPlayers((prev) => ({
           ...prev,
-          [bastral]: { ...prev[bastral], isBanned: true },
-          [account!]: { ...prev[account!], toursBalance: (prev[account!]?.toursBalance || 0) + 1e18 }
+          [bastral]: {
+            ...prev[bastral],
+            isBanned: true,
+          },
+          [account!]: {
+            ...prev[account!],
+            toursBalance: (prev[account!]?.toursBalance || 0) + 1e18,
+          },
         }));
-        setMessages(prev => [...prev, `${players[account!]?.username} banned ${players[bastral]?.username}! +1 $TOURS`]);
-        const newBastral = Object.keys(players).find(w => !players[w].isBanned && !players[w].isSpectator && w !== bastral) || null;
+        await pgPool.query('UPDATE users SET is_banned = TRUE WHERE wallet = $1', [bastral]);
+        await pgPool.query('UPDATE users SET tours_balance = tours_balance + $1 WHERE wallet = $2', [1e18, account]);
+        setMessages((prev) => [...prev, `${players[account!]?.username} banned ${players[bastral]?.username}! +1 $TOURS`]);
+        const newBastral = Object.keys(players).find((w) => !players[w].isBanned && !players[w].isSpectator && w !== bastral) || null;
         setBastral(newBastral);
         setChatInput('');
+        room.send({ type: 'state', players });
       } catch (error) {
-        alert('Ban failed: ' + error.message);
+        alert('Ban failed: ' + (error as Error).message);
       }
     }
-  }
+  }, 1000); // Debounce for lag prevention
 
-  async function addBots() {
-    const numBots = prompt('How many bots to add (1-10)?');
-    if (numBots && numBots >= 1 && numBots <= 10) {
-      for (let i = 0; i < numBots; i++) {
-        const botAddress = `0xBot${i + 1}${Date.now()}`;
-        const botUsername = `Bot${i + 1}`;
-        setPlayers(prev => ({
-          ...prev,
-          [botAddress]: { username: botUsername, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: 0 }
-        }));
-        setMessages(prev => [...prev, `${botUsername} (bot) joined`]);
-      }
+  function addBots(numBots: number) {
+    for (let i = 0; i < numBots; i++) {
+      const botAddress = `0xBot${i + 1}${Date.now()}`;
+      const botUsername = `Bot${i + 1}`;
+      const position = [Math.random() * 2000 - 1000, 0, Math.random() * 2000 - 1000];
+      setPlayers((prev) => ({
+        ...prev,
+        [botAddress]: { username: botUsername, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: 0, position },
+      }));
+      setMessages((prev) => [...prev, `${botUsername} (bot) joined`]);
+      // Bot auto-ban interval
+      bots.push(setInterval(() => {
+        if (bastral && Math.random() > 0.5) {
+          setPlayers((prev) => ({
+            ...prev,
+            [bastral]: { ...prev[bastral], isBanned: true },
+            [botAddress]: { ...prev[botAddress], toursBalance: (prev[botAddress]?.toursBalance || 0) + 1e18 },
+          }));
+          setMessages((prev) => [...prev, `${botUsername} banned ${players[bastral]?.username}! +1 $TOURS`]);
+          room.send({ type: 'state', players });
+        }
+      }, random(1000, 5000)));
     }
   }
 
@@ -977,32 +1074,32 @@ function BanallContent() {
     try {
       const calls = [
         { target: contractAddress, callData: contract.methods.getGameState().encodeABI() },
-        ...Object.keys(players).map(wallet => ({
+        ...Object.keys(players).map((wallet) => ({
           target: toursTokenAddress,
-          callData: toursContract.methods.balanceOf(wallet).encodeABI()
-        }))
+          callData: toursContract.methods.balanceOf(wallet).encodeABI(),
+        })),
       ];
       const results = await multicall.methods.aggregate(calls).call();
       const [timeLeft, bastral, playersList, usernames, banned, toursBalances, spectators, farcasterFids] = web3.eth.abi.decodeParameters(['uint256', 'address', 'address[]', 'string[]', 'bool[]', 'uint256[]', 'bool[]', 'uint256[]'], results.returnData[0]);
-      const updatedPlayers = {};
+      const updatedPlayers: Record<string, Player> = {};
       for (let i = 0; i < playersList.length; i++) {
-        updatedPlayers[playersList[i]] = { username: usernames[i], toursBalance: toursBalances[i], isBanned: banned[i], isSpectator: spectators[i], farcasterFid: farcasterFids[i] };
+        updatedPlayers[playersList[i]] = { username: usernames[i], toursBalance: Number(toursBalances[i]), isBanned: banned[i], isSpectator: spectators[i], farcasterFid: farcasterFids[i], position: [0, 0, 0] /* Fetch from DB */ };
       }
       setPlayers(updatedPlayers);
       setBastral(bastral);
       setTimeLeft(timeLeft);
       setGameActive(timeLeft > 0);
       if (timeLeft > 0 && !gameActive) {
-        setMessages(prev => [...prev, 'Game started!']);
+        setMessages((prev) => [...prev, 'Game started!']);
         setBotPrompted(false);
         setGameActive(true);
       } else if (timeLeft === 0 && gameActive) {
-        const winner = playersList.find((p, i) => !banned[i] && !spectators[i]);
+        const winner = playersList.find((p: string, i: number) => !banned[i] && !spectators[i]);
         if (winner) {
-          setMessages(prev => [...prev, `${updatedPlayers[winner].username} won ${results.returnData[0][5] / 1e18} MON and ${2 * results.returnData[0][5] / 1e18} $TOURS!`]);
-          setPlayers(prev => {
+          setMessages((prev) => [...prev, `${updatedPlayers[winner].username} won!`]);
+          setPlayers((prev) => {
             const newPlayers = { ...prev };
-            Object.keys(newPlayers).forEach(w => { newPlayers[w].isBanned = false; });
+            Object.keys(newPlayers).forEach((w) => { newPlayers[w].isBanned = false; });
             return newPlayers;
           });
           setGameActive(false);
@@ -1010,10 +1107,10 @@ function BanallContent() {
           setBotPrompted(false);
         }
       }
-      const activePlayers = Object.keys(updatedPlayers).filter(w => !updatedPlayers[w].isSpectator && !updatedPlayers[w].isBanned);
+      const activePlayers = Object.keys(updatedPlayers).filter((w) => !updatedPlayers[w].isSpectator && !updatedPlayers[w].isBanned);
       if (activePlayers.length === 1 && !botPrompted && !gameActive) {
         setBotPrompted(true);
-        setMessages(prev => [...prev, 'Alone in lobby! Add bots?']);
+        setMessages((prev) => [...prev, 'Alone in lobby! Add bots?']);
       }
     } catch (error) {
       console.error('Error checking game state:', error);
@@ -1035,19 +1132,20 @@ function BanallContent() {
         {messages.slice(-50).map((msg, i) => (
           <div key={i} className="chat-message">{msg}</div>
         ))}
-        {Object.keys(players).map(wallet => (
+        {Object.keys(players).map((wallet) => (
           <div key={wallet} className={`chat-message ${players[wallet].isBanned ? 'banned' : players[wallet].isSpectator ? 'spectator' : ''}`}>
             {players[wallet].username}: {players[wallet].toursBalance / 1e18} $TOURS{players[wallet].farcasterFid ? ` (FID: ${players[wallet].farcasterFid})` : ''} ({wallet.substring(0, 6)}...)
           </div>
         ))}
       </div>
+      <div ref={threeRef} style={{ height: '300px', marginBottom: '20px' }} /> {/* 3D embed */}
       <input
         type="text"
         placeholder="Set Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         className="w-full p-2 mb-2 border rounded"
-        disabled={!!players[account]}
+        disabled={!!players[account ?? '']}
       />
       <input
         type="text"
@@ -1055,32 +1153,36 @@ function BanallContent() {
         value={farcasterFid}
         onChange={(e) => setFarcasterFid(e.target.value)}
         className="w-full p-2 mb-2 border rounded"
-        disabled={!!players[account]}
+        disabled={!!players[account ?? '']}
       />
       <input
         type="text"
         placeholder="Type /ban @bastral"
         value={chatInput}
         onChange={(e) => setChatInput(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && banBastral()}
+        onKeyPress={(e) => e.key === 'Enter' && debouncedBan()}
         className="w-full p-2 mb-2 border rounded"
-        disabled={!gameActive || players[account]?.isBanned || players[account]?.isSpectator}
+        disabled={!gameActive || players[account ?? '']?.isBanned || players[account ?? '']?.isSpectator}
       />
       <button onClick={connectWallet} className="w-full bg-blue-500 text-white p-2 rounded mb-2" disabled={isConnected}>
         {isConnected ? `Connected: ${address?.substring(0, 6)}...` : 'Connect Wallet'}
       </button>
-      <button onClick={createProfile} className="w-full bg-green-500 text-white p-2 rounded mb-2" disabled={!!players[account]}>
+      <button onClick={createProfile} className="w-full bg-green-500 text-white p-2 rounded mb-2" disabled={!!players[account ?? '']}>
         Create Profile
       </button>
-      <button onClick={joinGame} className="w-full bg-purple-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
+      <button onClick={joinGame} className="w-full bg-purple-500 text-white p-2 rounded mb-2" disabled={!players[account ?? ''] || players[account ?? '']?.isSpectator}>
         Join Game (1 MON)
       </button>
-      <button onClick={spectateGame} className="w-full bg-gray-500 text-white p-2 rounded mb-2" disabled={!players[account] || players[account]?.isSpectator}>
+      <button onClick={spectateGame} className="w-full bg-gray-500 text-white p-2 rounded mb-2" disabled={!players[account ?? ''] || players[account ?? '']?.isSpectator}>
         Spectate
       </button>
-      <button onClick={addBots} className="w-full bg-yellow-500 text-white p-2 rounded mb-2" disabled={!botPrompted || gameActive}>
+      <button onClick={() => addBots(Number(prompt('How many bots (1-10)?')))} className="w-full bg-yellow-500 text-white p-2 rounded mb-2" disabled={!botPrompted || gameActive}>
         Add Bots
       </button>
     </div>
   );
+}
+
+function random(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
