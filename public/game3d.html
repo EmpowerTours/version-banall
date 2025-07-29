@@ -797,16 +797,35 @@
             });
 
             // Mobile controls
-            document.getElementById('moveUp').addEventListener('touchstart', () => keys['w'] = true);
-            document.getElementById('moveUp').addEventListener('touchend', () => keys['w'] = false);
-            document.getElementById('moveDown').addEventListener('touchstart', () => keys['s'] = true);
-            document.getElementById('moveDown').addEventListener('touchend', () => keys['s'] = false);
-            document.getElementById('moveLeft').addEventListener('touchstart', () => keys['a'] = true);
-            document.getElementById('moveLeft').addEventListener('touchend', () => keys['a'] = false);
-            document.getElementById('moveRight').addEventListener('touchstart', () => keys['d'] = true);
-            document.getElementById('moveRight').addEventListener('touchend', () => keys['d'] = false);
-            document.getElementById('climb').addEventListener('touchstart', () => keys[' '] = true);
-            document.getElementById('climb').addEventListener('touchend', () => keys[' '] = false);
+            document.getElementById('moveUp').addEventListener('touchstart', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveUp').addEventListener('touchend', (e) => { e.preventDefault(); keys['w'] = false; });
+            document.getElementById('moveUp').addEventListener('mousedown', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveUp').addEventListener('mouseup', (e) => { e.preventDefault(); keys['w'] = false; });
+            
+            document.getElementById('moveDown').addEventListener('touchstart', (e) => { e.preventDefault(); keys['s'] = true; });
+            document.getElementById('moveDown').addEventListener('touchend', (e) => { e.preventDefault(); keys['s'] = false; });
+            document.getElementById('moveDown').addEventListener('mousedown', (e) => { e.preventDefault(); keys['s'] = true; });
+            document.getElementById('moveDown').addEventListener('mouseup', (e) => { e.preventDefault(); keys['s'] = false; });
+            
+            document.getElementById('moveLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys['a'] = true; });
+            document.getElementById('moveLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys['a'] = false; });
+            document.getElementById('moveLeft').addEventListener('mousedown', (e) => { e.preventDefault(); keys['a'] = true; });
+            document.getElementById('moveLeft').addEventListener('mouseup', (e) => { e.preventDefault(); keys['a'] = false; });
+            
+            document.getElementById('moveRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys['d'] = true; });
+            document.getElementById('moveRight').addEventListener('touchend', (e) => { e.preventDefault(); keys['d'] = false; });
+            document.getElementById('moveRight').addEventListener('mousedown', (e) => { e.preventDefault(); keys['d'] = true; });
+            document.getElementById('moveRight').addEventListener('mouseup', (e) => { e.preventDefault(); keys['d'] = false; });
+            
+            document.getElementById('climb').addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
+            document.getElementById('climb').addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+            document.getElementById('climb').addEventListener('mousedown', (e) => { e.preventDefault(); keys[' '] = true; });
+            document.getElementById('climb').addEventListener('mouseup', (e) => { e.preventDefault(); keys[' '] = false; });
+
+            document.getElementById('moveForward').addEventListener('touchstart', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveForward').addEventListener('touchend', (e) => { e.preventDefault(); keys['w'] = false; });
+            document.getElementById('moveForward').addEventListener('mousedown', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveForward').addEventListener('mouseup', (e) => { e.preventDefault(); keys['w'] = false; });
 
             // Chat input
             document.getElementById('chatInput').addEventListener('keypress', (event) => {
