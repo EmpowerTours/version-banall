@@ -1328,7 +1328,19 @@
 
             // Start game button
             document.getElementById('startGameBtn').addEventListener('click', () => {
-                if (websocket) {
+                if (gameMode === 'singleplayer') {
+                    // Start single player game
+                    isGameActive = true;
+                    gameStartTime = Date.now() / 1000;
+                    
+                    // Spawn bots
+                    spawnBots(3); // Spawn 3 bots
+                    
+                    updateGameState();
+                    showNotification('🥷 Single player game started! Find and ban the @bastral!');
+                    
+                } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    // Start multiplayer game
                     websocket.send(JSON.stringify({ type: 'start_game' }));
                 }
             });
