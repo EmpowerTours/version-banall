@@ -1569,7 +1569,7 @@ window.env = {{
     """
     return Response(content=content, media_type="application/javascript")
 
-app.mount("/public", StaticFiles(directory="public"), name="public")
+# Removed duplicate mount - using the absolute path mount above
 
 @app.get("/")
 async def root():
