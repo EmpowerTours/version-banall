@@ -914,6 +914,8 @@
         function updateGameState() {
             if (!gameRoom) return;
 
+            console.log('Updating game state:', gameRoom);
+
             // Update player count
             document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
 
@@ -931,27 +933,59 @@
                 }
             }
 
-            // Add players to scene
+            // Spawn/Update all players in the scene
             for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
                 if (playerId === myPlayerId) {
+                    // Create my player if not exists
                     if (!myPlayer) {
+                        console.log('Creating my player:', playerId);
                         myPlayer = createStickFigure(playerId, playerData.position, true);
                         scene.add(myPlayer);
                         
-                        // Follow camera
+                        // Set camera to follow player
                         camera.position.set(
                             playerData.position.x,
                             playerData.position.y + 5,
                             playerData.position.z + 10
                         );
                     }
-                } else if (!players[playerId]) {
-                    addPlayer(playerData);
+                } else {
+                    // Create other players if not exists
+                    if (!players[playerId]) {
+                        console.log('Creating other player:', playerId);
+                        addPlayer(playerData);
+                    }
                 }
             }
 
             updateBastralDisplay();
+            console.log('Game state updated. My player exists:', !!myPlayer, 'Other players:', Object.keys(players).length);
         }
+
+        function updateGameTimer(secondsLeft = null) {
+            const timerElement = document.getElementById('gameTimer');
+            if (secondsLeft !== null) {
+                if (secondsLeft > 0) {
+                    timerElement.textContent = `Starting in: ${secondsLeft}s`;
+                    timerElement.style.color = '#ffd93d';
+                } else {
+                    timerElement.textContent = 'Game Active!';
+                    timerElement.style.color = '#ff6b6b';
+                }
+            } else if (isGameActive && gameStartTime) {
+                const elapsed = (Date.now() / 1000) - gameStartTime;
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = Math.floor(elapsed % 60);
+                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                timerElement.style.color = '#fff';
+            } else {
+                timerElement.textContent = 'Waiting...';
+                timerElement.style.color = '#ccc';
+            }
+        }
+
+        // Update timer every second
+        setInterval(updateGameTimer, 1000);
 
         function updateBastralDisplay() {
             const bastralElement = document.getElementById('bastralName');
