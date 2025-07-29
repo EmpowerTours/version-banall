@@ -615,141 +615,212 @@
             }, 50);
         }
 
-        function createNinjaStickFigure(playerId, position, isMe = false, isBot = false) {
+        function createMarineCombatVeteran(playerId, position, isMe = false, isBot = false) {
             const group = new THREE.Group();
             group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
             
-            // Determine color based on player type
-            let playerColor = 0xffffff; // Default white
+            // Determine color scheme based on player type
+            let primaryColor = 0x8b4513; // Military brown
+            let accentColor = 0x556b2f; // Olive drab
             if (isMe) {
-                playerColor = 0xff6b6b; // Red for my player
+                primaryColor = 0x8b0000; // Dark red for my marine
+                accentColor = 0xff4500; // Orange red accent
             } else if (playerId === bastralId) {
-                playerColor = 0xffd93d; // Yellow for bastral
+                primaryColor = 0xffd700; // Gold for target
+                accentColor = 0xffff00; // Bright yellow accent
             } else if (isBot) {
-                playerColor = 0x6bcf7f; // Green for bots
+                primaryColor = 0x2f4f4f; // Dark slate gray for enemy bots
+                accentColor = 0x696969; // Dim gray accent
             }
             
-            const material = new THREE.MeshLambertMaterial({ color: playerColor });
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: primaryColor });
+            const gearMaterial = new THREE.MeshLambertMaterial({ color: accentColor });
+            const metalMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c }); // Dark metal
             
-            // HEAD - More rounded and ninja-like
-            const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-            const head = new THREE.Mesh(headGeometry, material);
-            head.position.y = 2.8;
-            head.castShadow = true;
-            group.add(head);
+            // MILITARY HELMET with night vision
+            const helmetGeometry = new THREE.SphereGeometry(0.35, 8, 8);
+            const helmetMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f });
+            const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
+            helmet.position.y = 2.9;
+            helmet.castShadow = true;
+            group.add(helmet);
             
-            // NINJA MASK - Black band across eyes
-            const maskGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
-            const maskMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
-            const mask = new THREE.Mesh(maskGeometry, maskMaterial);
-            mask.position.set(0, 2.85, 0.25);
-            group.add(mask);
+            // Night vision goggles
+            const nvgGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.2);
+            const nvg = new THREE.Mesh(nvgGeometry, metalMaterial);
+            nvg.position.set(0, 2.95, 0.3);
+            group.add(nvg);
 
-            // BODY - Sleeker torso
-            const bodyGeometry = new THREE.CapsuleGeometry(0.12, 1.8, 4, 8);
-            const body = new THREE.Mesh(bodyGeometry, material);
-            body.position.y = 1.2;
+            // COMBAT VEST/BODY ARMOR
+            const vestGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.3);
+            const vest = new THREE.Mesh(vestGeometry, gearMaterial);
+            vest.position.y = 1.8;
+            vest.castShadow = true;
+            group.add(vest);
+
+            // MAIN BODY under armor
+            const bodyGeometry = new THREE.CapsuleGeometry(0.15, 1.5, 4, 8);
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.0;
             body.castShadow = true;
             group.add(body);
 
-            // ARMS - More flexible joints
-            const upperArmGeometry = new THREE.CapsuleGeometry(0.06, 0.8, 4, 8);
-            const lowerArmGeometry = new THREE.CapsuleGeometry(0.05, 0.7, 4, 8);
+            // TACTICAL BACKPACK
+            const backpackGeometry = new THREE.BoxGeometry(0.6, 1.0, 0.4);
+            const backpack = new THREE.Mesh(backpackGeometry, gearMaterial);
+            backpack.position.set(0, 1.8, -0.4);
+            backpack.castShadow = true;
+            group.add(backpack);
+
+            // ARMS with tactical gloves
+            const upperArmGeometry = new THREE.CapsuleGeometry(0.08, 0.9, 4, 8);
+            const forearmGeometry = new THREE.CapsuleGeometry(0.07, 0.8, 4, 8);
             
-            // Left upper arm
-            const leftUpperArm = new THREE.Mesh(upperArmGeometry, material);
-            leftUpperArm.position.set(-0.6, 1.8, 0);
-            leftUpperArm.rotation.z = Math.PI / 8;
+            // Left arm
+            const leftUpperArm = new THREE.Mesh(upperArmGeometry, bodyMaterial);
+            leftUpperArm.position.set(-0.7, 1.9, 0);
+            leftUpperArm.rotation.z = Math.PI / 12;
             leftUpperArm.castShadow = true;
             group.add(leftUpperArm);
             
-            // Left forearm
-            const leftForearm = new THREE.Mesh(lowerArmGeometry, material);
-            leftForearm.position.set(-0.9, 1.2, 0);
-            leftForearm.rotation.z = Math.PI / 6;
+            const leftForearm = new THREE.Mesh(forearmGeometry, bodyMaterial);
+            leftForearm.position.set(-1.0, 1.3, 0);
+            leftForearm.rotation.z = Math.PI / 8;
             leftForearm.castShadow = true;
             group.add(leftForearm);
             
-            // Right upper arm
-            const rightUpperArm = new THREE.Mesh(upperArmGeometry, material);
-            rightUpperArm.position.set(0.6, 1.8, 0);
-            rightUpperArm.rotation.z = -Math.PI / 8;
+            // Tactical gloves
+            const gloveGeometry = new THREE.SphereGeometry(0.1, 6, 6);
+            const leftGlove = new THREE.Mesh(gloveGeometry, metalMaterial);
+            leftGlove.position.set(-1.2, 0.9, 0);
+            group.add(leftGlove);
+            
+            // Right arm
+            const rightUpperArm = new THREE.Mesh(upperArmGeometry, bodyMaterial);
+            rightUpperArm.position.set(0.7, 1.9, 0);
+            rightUpperArm.rotation.z = -Math.PI / 12;
             rightUpperArm.castShadow = true;
             group.add(rightUpperArm);
             
-            // Right forearm
-            const rightForearm = new THREE.Mesh(lowerArmGeometry, material);
-            rightForearm.position.set(0.9, 1.2, 0);
-            rightForearm.rotation.z = -Math.PI / 6;
+            const rightForearm = new THREE.Mesh(forearmGeometry, bodyMaterial);
+            rightForearm.position.set(1.0, 1.3, 0);
+            rightForearm.rotation.z = -Math.PI / 8;
             rightForearm.castShadow = true;
             group.add(rightForearm);
-
-            // LEGS - More flexible and ninja-like
-            const upperLegGeometry = new THREE.CapsuleGeometry(0.08, 0.9, 4, 8);
-            const lowerLegGeometry = new THREE.CapsuleGeometry(0.06, 0.8, 4, 8);
             
-            // Left upper leg
-            const leftUpperLeg = new THREE.Mesh(upperLegGeometry, material);
-            leftUpperLeg.position.set(-0.25, 0.4, 0);
+            const rightGlove = new THREE.Mesh(gloveGeometry, metalMaterial);
+            rightGlove.position.set(1.2, 0.9, 0);
+            group.add(rightGlove);
+
+            // LEGS with combat boots
+            const upperLegGeometry = new THREE.CapsuleGeometry(0.1, 1.0, 4, 8);
+            const lowerLegGeometry = new THREE.CapsuleGeometry(0.09, 0.9, 4, 8);
+            
+            // Left leg
+            const leftUpperLeg = new THREE.Mesh(upperLegGeometry, bodyMaterial);
+            leftUpperLeg.position.set(-0.3, 0.3, 0);
             leftUpperLeg.castShadow = true;
             group.add(leftUpperLeg);
             
-            // Left lower leg
-            const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, material);
-            leftLowerLeg.position.set(-0.25, -0.4, 0);
+            const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, bodyMaterial);
+            leftLowerLeg.position.set(-0.3, -0.5, 0);
             leftLowerLeg.castShadow = true;
             group.add(leftLowerLeg);
             
-            // Right upper leg
-            const rightUpperLeg = new THREE.Mesh(upperLegGeometry, material);
-            rightUpperLeg.position.set(0.25, 0.4, 0);
+            // Right leg  
+            const rightUpperLeg = new THREE.Mesh(upperLegGeometry, bodyMaterial);
+            rightUpperLeg.position.set(0.3, 0.3, 0);
             rightUpperLeg.castShadow = true;
             group.add(rightUpperLeg);
             
-            // Right lower leg
-            const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, material);
-            rightLowerLeg.position.set(0.25, -0.4, 0);
+            const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, bodyMaterial);
+            rightLowerLeg.position.set(0.3, -0.5, 0);
             rightLowerLeg.castShadow = true;
             group.add(rightLowerLeg);
             
-            // NINJA FEET - Small pointed feet
-            const footGeometry = new THREE.ConeGeometry(0.1, 0.3, 4);
-            const leftFoot = new THREE.Mesh(footGeometry, material);
-            leftFoot.position.set(-0.25, -0.8, 0.15);
-            leftFoot.rotation.x = Math.PI / 2;
-            group.add(leftFoot);
+            // COMBAT BOOTS
+            const bootGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.4);
+            const bootMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
             
-            const rightFoot = new THREE.Mesh(footGeometry, material);
-            rightFoot.position.set(0.25, -0.8, 0.15);
-            rightFoot.rotation.x = Math.PI / 2;
-            group.add(rightFoot);
+            const leftBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+            leftBoot.position.set(-0.3, -0.95, 0.1);
+            leftBoot.castShadow = true;
+            group.add(leftBoot);
+            
+            const rightBoot = new THREE.Mesh(bootGeometry, bootMaterial);
+            rightBoot.position.set(0.3, -0.95, 0.1);
+            rightBoot.castShadow = true;
+            group.add(rightBoot);
 
-            // Position the figure (raise it so feet touch ground)
-            group.position.set(position.x, position.y + 0.8, position.z);
+            // TACTICAL WEAPON (assault rifle)
+            const weaponGeometry = new THREE.BoxGeometry(0.05, 0.05, 1.2);
+            const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
+            const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+            weapon.position.set(0.8, 1.5, 0.3);
+            weapon.rotation.x = -Math.PI / 6;
+            weapon.castShadow = true;
+            group.add(weapon);
+
+            // Position the marine (adjust for boots touching ground)
+            group.position.set(position.x, position.y + 1.0, position.z);
             group.rotation.y = position.rotation_y || 0;
 
-            // Add name label with icon
-            const labelText = playerId === bastralId ? `👾 @${username}` : 
-                             isBot ? `🤖 ${playerId}` : 
-                             isMe ? `🥷 ${username}` : `🥷 ${playerId}`;
-            const labelColor = playerId === bastralId ? '#ffd93d' : 
-                              isBot ? '#6bcf7f' : 
-                              isMe ? '#ff6b6b' : '#ffffff';
-            const label = createPlayerLabel(labelText, labelColor);
-            label.position.y = 3.8;
+            // Add military rank/callsign label
+            const labelText = playerId === bastralId ? `🎯 TARGET: ${username || playerId}` : 
+                             isBot ? `🤖 SGT ${playerId}` : 
+                             isMe ? `🪖 ${username || 'MARINE'}` : `🪖 ${playerId}`;
+            const labelColor = playerId === bastralId ? '#ffd700' : 
+                              isBot ? '#ff4500' : 
+                              isMe ? '#ff0000' : '#ffffff';
+            const label = createMilitaryLabel(labelText, labelColor);
+            label.position.y = 4.0;
             group.add(label);
 
             // Store references for animations
             group.userData.bodyParts = {
-                head, body, mask,
+                helmet, vest, body, backpack,
                 leftUpperArm, leftForearm, rightUpperArm, rightForearm,
                 leftUpperLeg, leftLowerLeg, rightUpperLeg, rightLowerLeg,
-                leftFoot, rightFoot
+                leftBoot, rightBoot, weapon, leftGlove, rightGlove
             };
             group.userData.label = label;
 
-            console.log(`Created ninja stick figure for ${playerId} at position:`, position);
+            console.log(`Created marine combat veteran: ${playerId} at position:`, position);
             return group;
+        }
+
+        function createMilitaryLabel(text, color = '#ffffff') {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            // Military-style background
+            context.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Military border
+            context.strokeStyle = color;
+            context.lineWidth = 6;
+            context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+            
+            // Rank insignia background
+            context.fillStyle = 'rgba(85, 107, 47, 0.8)'; // Olive drab
+            context.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+            
+            // Text
+            context.fillStyle = color;
+            context.font = 'bold 42px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(4, 1, 1);
+            
+            return sprite;
         }
 
         function createPlayerLabel(text, color = '#ffffff') {
