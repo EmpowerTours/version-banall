@@ -432,6 +432,17 @@
             try {
                 console.log('Initializing mountain warfare game...');
                 
+                // Set a timeout to force-hide loading screen after 10 seconds
+                const loadingTimeout = setTimeout(() => {
+                    console.warn('Game initialization taking too long - forcing continue...');
+                    const loadingScreen = document.getElementById('loadingScreen');
+                    if (loadingScreen && loadingScreen.style.display !== 'none') {
+                        loadingScreen.style.display = 'none';
+                        showNotification('⚠️ Initialization timeout - Continuing in simplified mode');
+                        updateGameState();
+                    }
+                }, 10000);
+                
                 // Get Telegram user info
                 if (WebApp) {
                     WebApp.ready();
@@ -451,11 +462,15 @@
                 console.log('Marine ID assigned:', myPlayerId);
 
                 // Initialize 3D scene
-                initScene();
+                const sceneInitialized = initScene();
                 
                 // Connect to game server (only in multiplayer mode)
                 if (gameMode === 'multiplayer') {
-                    await connectToGameServer();
+                    try {
+                        await connectToGameServer();
+                    } catch (error) {
+                        console.warn('Failed to connect to server, continuing in offline mode:', error);
+                    }
                 } else {
                     console.log('Single player mode - skipping server connection');
                     // Initialize game room for single player
@@ -474,19 +489,32 @@
                 // Update initial game state
                 updateGameState();
                 
-                // Start game loop
-                animate();
+                // Start game loop only if 3D scene initialized
+                if (sceneInitialized) {
+                    animate();
+                } else {
+                    console.log('Running in 2D fallback mode - skipping 3D animation loop');
+                }
                 
-                // Hide loading screen
+                // Clear the timeout and hide loading screen
+                clearTimeout(loadingTimeout);
                 const loadingScreen = document.getElementById('loadingScreen');
                 if (loadingScreen) {
                     loadingScreen.style.display = 'none';
-                    console.log('Loading screen hidden - game ready!');
+                    console.log('Loading screen hidden - mountain base ready!');
                 }
                 
             } catch (error) {
                 console.error('Failed to initialize mountain warfare game:', error);
-                showNotification('Failed to deploy to mountain base. Please refresh.');
+                
+                // Force hide loading screen on error
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                
+                showNotification('⚠️ Deployment error - Operating in emergency mode');
+                updateGameState();
             }
         }
 
