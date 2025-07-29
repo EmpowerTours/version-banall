@@ -585,8 +585,8 @@
 
         async function connectToGameServer() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws/${myPlayerId}`;
+            const backendPort = '8080'; // Backend is running on port 8080
+            const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}/ws/${myPlayerId}`;
             
             console.log('Connecting to WebSocket:', wsUrl);
             
@@ -594,7 +594,7 @@
             
             websocket.onopen = () => {
                 console.log('Connected to game server');
-                showNotification('Connected to climbing wall!');
+                showNotification('🎮 Connected to climbing wall!');
             };
             
             websocket.onmessage = (event) => {
@@ -605,23 +605,40 @@
             
             websocket.onclose = () => {
                 console.log('Disconnected from game server');
-                showNotification('Disconnected from server');
+                showNotification('❌ Disconnected from server');
             };
             
             websocket.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                showNotification('Connection error - trying demo mode');
+                showNotification('⚠️ Connection error - trying demo mode');
                 // Enable demo mode if WebSocket fails
                 setTimeout(() => {
+                    console.log('Enabling demo mode');
                     gameRoom = {
                         room_id: 'demo',
                         is_active: false,
                         player_count: 1,
-                        players: {},
+                        players: {
+                            [myPlayerId]: {
+                                id: myPlayerId,
+                                username: `Player_${myPlayerId}`,
+                                wallet_address: "",
+                                position: {
+                                    x: 0,
+                                    y: 0,
+                                    z: -2,
+                                    rotation_y: 0
+                                },
+                                is_banned: false,
+                                is_bastral: false,
+                                is_spectator: false,
+                                animation_state: "idle"
+                            }
+                        },
                         bastral_id: null
                     };
                     updateGameState();
-                }, 1000);
+                }, 2000);
             };
         }
 
