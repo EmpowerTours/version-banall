@@ -902,15 +902,15 @@
                 scene.add(trench);
             }
 
-            // MILITARY EQUIPMENT scattered around
-            for (let i = 0; i < 15; i++) {
+            // MILITARY EQUIPMENT scattered across the massive terrain
+            for (let i = 0; i < 50; i++) { // More equipment for larger environment
                 const equipGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.5);
                 const equipMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f }); // Military green
                 const equipment = new THREE.Mesh(equipGeometry, equipMaterial);
                 equipment.position.set(
-                    (Math.random() - 0.5) * 70,
+                    (Math.random() - 0.5) * 160, // Spread across the larger terrain
                     0.15,
-                    Math.random() * 20
+                    (Math.random() - 0.5) * 160
                 );
                 equipment.castShadow = true;
                 scene.add(equipment);
