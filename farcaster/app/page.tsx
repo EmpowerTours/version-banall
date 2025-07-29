@@ -9,12 +9,8 @@ import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector';
 import Web3 from 'web3';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { Pool } from 'pg';
 import debounce from 'lodash/debounce';
 import * as Multisynq from '@multisynq/client';
-
-// Postgres pool
-const pgPool = new Pool({ connectionString: 'postgresql://postgres:ZeyMkvenyYVjKQeOmMzTlCUuHLZOUWiy@gondola.proxy.rlwy.net:5432/railway' });
 
 // Multisynq init
 let multisynqSession: any; // Session object
@@ -960,7 +956,11 @@ function BanallContent() {
         ...prev,
         [account!]: { username, toursBalance: 0, isBanned: false, isSpectator: false, farcasterFid: Number(farcasterFid) || 0, position },
       }));
-      await pgPool.query('INSERT INTO users (wallet, username) VALUES ($1, $2)', [account, username]);
+      await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'createProfile', wallet: account, username }),
+      });
       setMessages((prev) => [...prev, `${username} joined`]);
       setUsername('');
       setFarcasterFid('0');
@@ -983,7 +983,11 @@ function BanallContent() {
         ...prev,
         [account!]: { ...prev[account!], isSpectator: false },
       }));
-      await pgPool.query('UPDATE users SET is_spectator = FALSE WHERE wallet = $1', [account]);
+      await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateSpectator', wallet: account, isSpectator: false }),
+      });
       setMessages((prev) => [...prev, `${players[account!]?.username} joined the game`]);
       multisynqSession.update({ type: 'state', players });
     } catch (error) {
@@ -1003,7 +1007,11 @@ function BanallContent() {
         ...prev,
         [account!]: { ...prev[account!], isSpectator: true },
       }));
-      await pgPool.query('UPDATE users SET is_spectator = TRUE WHERE wallet = $1', [account]);
+      await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateSpectator', wallet: account, isSpectator: true }),
+      });
       setMessages((prev) => [...prev, `${players[account!]?.username} joined as spectator`]);
       multisynqSession.update({ type: 'state', players });
     } catch (error) {
@@ -1031,8 +1039,16 @@ function BanallContent() {
             toursBalance: (prev[account!]?.toursBalance || 0) + 1e18,
           },
         }));
-        await pgPool.query('UPDATE users SET is_banned = TRUE WHERE wallet = $1', [bastral]);
-        await pgPool.query('UPDATE users SET tours_balance = tours_balance + $1 WHERE wallet = $2', [1e18, account]);
+        await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'updateBan', wallet: bastral, isBanned: true }),
+        });
+        await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'updateBalance', wallet: account, toursBalance: (players[account!]?.toursBalance || 0) + 1e18 }),
+        });
         setMessages((prev) => [...prev, `${players[account!]?.username} banned ${players[bastral]?.username}! +1 $TOURS`]);
         const newBastral = Object.keys(players).find((w) => !players[w].isBanned && !players[w].isSpectator && w !== bastral) || null;
         setBastral(newBastral);
