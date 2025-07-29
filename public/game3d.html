@@ -537,9 +537,9 @@
             }
         }
 
-        function createStickFigure(playerId, position, isMe = false) {
+        function createNinjaStickFigure(playerId, position, isMe = false, isBot = false) {
             const group = new THREE.Group();
-            group.userData = { playerId: playerId, isMe: isMe };
+            group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
             
             // Determine color based on player type
             let playerColor = 0xffffff; // Default white
@@ -547,67 +547,130 @@
                 playerColor = 0xff6b6b; // Red for my player
             } else if (playerId === bastralId) {
                 playerColor = 0xffd93d; // Yellow for bastral
+            } else if (isBot) {
+                playerColor = 0x6bcf7f; // Green for bots
             }
             
-            // Body (main torso)
-            const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2.5);
-            const bodyMaterial = new THREE.MeshLambertMaterial({ color: playerColor });
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 1.25;
+            const material = new THREE.MeshLambertMaterial({ color: playerColor });
+            
+            // HEAD - More rounded and ninja-like
+            const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+            const head = new THREE.Mesh(headGeometry, material);
+            head.position.y = 2.8;
+            head.castShadow = true;
+            group.add(head);
+            
+            // NINJA MASK - Black band across eyes
+            const maskGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
+            const maskMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+            const mask = new THREE.Mesh(maskGeometry, maskMaterial);
+            mask.position.set(0, 2.85, 0.25);
+            group.add(mask);
+
+            // BODY - Sleeker torso
+            const bodyGeometry = new THREE.CapsuleGeometry(0.12, 1.8, 4, 8);
+            const body = new THREE.Mesh(bodyGeometry, material);
+            body.position.y = 1.2;
             body.castShadow = true;
             group.add(body);
 
-            // Head
-            const headGeometry = new THREE.SphereGeometry(0.4);
-            const head = new THREE.Mesh(headGeometry, bodyMaterial);
-            head.position.y = 3.0;
-            head.castShadow = true;
-            group.add(head);
-
-            // Arms
-            const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.8);
+            // ARMS - More flexible joints
+            const upperArmGeometry = new THREE.CapsuleGeometry(0.06, 0.8, 4, 8);
+            const lowerArmGeometry = new THREE.CapsuleGeometry(0.05, 0.7, 4, 8);
             
-            const leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            leftArm.position.set(-0.8, 1.8, 0);
-            leftArm.rotation.z = Math.PI / 6;
-            leftArm.castShadow = true;
-            group.add(leftArm);
-
-            const rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            rightArm.position.set(0.8, 1.8, 0);
-            rightArm.rotation.z = -Math.PI / 6;
-            rightArm.castShadow = true;
-            group.add(rightArm);
-
-            // Legs
-            const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.8);
+            // Left upper arm
+            const leftUpperArm = new THREE.Mesh(upperArmGeometry, material);
+            leftUpperArm.position.set(-0.6, 1.8, 0);
+            leftUpperArm.rotation.z = Math.PI / 8;
+            leftUpperArm.castShadow = true;
+            group.add(leftUpperArm);
             
-            const leftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            leftLeg.position.set(-0.4, -0.15, 0);
-            leftLeg.castShadow = true;
-            group.add(leftLeg);
+            // Left forearm
+            const leftForearm = new THREE.Mesh(lowerArmGeometry, material);
+            leftForearm.position.set(-0.9, 1.2, 0);
+            leftForearm.rotation.z = Math.PI / 6;
+            leftForearm.castShadow = true;
+            group.add(leftForearm);
+            
+            // Right upper arm
+            const rightUpperArm = new THREE.Mesh(upperArmGeometry, material);
+            rightUpperArm.position.set(0.6, 1.8, 0);
+            rightUpperArm.rotation.z = -Math.PI / 8;
+            rightUpperArm.castShadow = true;
+            group.add(rightUpperArm);
+            
+            // Right forearm
+            const rightForearm = new THREE.Mesh(lowerArmGeometry, material);
+            rightForearm.position.set(0.9, 1.2, 0);
+            rightForearm.rotation.z = -Math.PI / 6;
+            rightForearm.castShadow = true;
+            group.add(rightForearm);
 
-            const rightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            rightLeg.position.set(0.4, -0.15, 0);
-            rightLeg.castShadow = true;
-            group.add(rightLeg);
+            // LEGS - More flexible and ninja-like
+            const upperLegGeometry = new THREE.CapsuleGeometry(0.08, 0.9, 4, 8);
+            const lowerLegGeometry = new THREE.CapsuleGeometry(0.06, 0.8, 4, 8);
+            
+            // Left upper leg
+            const leftUpperLeg = new THREE.Mesh(upperLegGeometry, material);
+            leftUpperLeg.position.set(-0.25, 0.4, 0);
+            leftUpperLeg.castShadow = true;
+            group.add(leftUpperLeg);
+            
+            // Left lower leg
+            const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, material);
+            leftLowerLeg.position.set(-0.25, -0.4, 0);
+            leftLowerLeg.castShadow = true;
+            group.add(leftLowerLeg);
+            
+            // Right upper leg
+            const rightUpperLeg = new THREE.Mesh(upperLegGeometry, material);
+            rightUpperLeg.position.set(0.25, 0.4, 0);
+            rightUpperLeg.castShadow = true;
+            group.add(rightUpperLeg);
+            
+            // Right lower leg
+            const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, material);
+            rightLowerLeg.position.set(0.25, -0.4, 0);
+            rightLowerLeg.castShadow = true;
+            group.add(rightLowerLeg);
+            
+            // NINJA FEET - Small pointed feet
+            const footGeometry = new THREE.ConeGeometry(0.1, 0.3, 4);
+            const leftFoot = new THREE.Mesh(footGeometry, material);
+            leftFoot.position.set(-0.25, -0.8, 0.15);
+            leftFoot.rotation.x = Math.PI / 2;
+            group.add(leftFoot);
+            
+            const rightFoot = new THREE.Mesh(footGeometry, material);
+            rightFoot.position.set(0.25, -0.8, 0.15);
+            rightFoot.rotation.x = Math.PI / 2;
+            group.add(rightFoot);
 
-            // Position the figure
-            group.position.set(position.x, position.y + 1.0, position.z); // Raise figure above ground
+            // Position the figure (raise it so feet touch ground)
+            group.position.set(position.x, position.y + 0.8, position.z);
             group.rotation.y = position.rotation_y || 0;
 
-            // Add name label
-            const labelText = playerId === bastralId ? `@${playerId}` : playerId;
-            const labelColor = playerId === bastralId ? '#ffd93d' : (isMe ? '#ff6b6b' : '#ffffff');
+            // Add name label with icon
+            const labelText = playerId === bastralId ? `👾 @${username}` : 
+                             isBot ? `🤖 ${playerId}` : 
+                             isMe ? `🥷 ${username}` : `🥷 ${playerId}`;
+            const labelColor = playerId === bastralId ? '#ffd93d' : 
+                              isBot ? '#6bcf7f' : 
+                              isMe ? '#ff6b6b' : '#ffffff';
             const label = createPlayerLabel(labelText, labelColor);
-            label.position.y = 4.2;
+            label.position.y = 3.8;
             group.add(label);
 
-            // Store references for easy updates
-            group.userData.bodyParts = [body, head, leftArm, rightArm, leftLeg, rightLeg];
+            // Store references for animations
+            group.userData.bodyParts = {
+                head, body, mask,
+                leftUpperArm, leftForearm, rightUpperArm, rightForearm,
+                leftUpperLeg, leftLowerLeg, rightUpperLeg, rightLowerLeg,
+                leftFoot, rightFoot
+            };
             group.userData.label = label;
 
-            console.log(`Created stick figure for ${playerId} at position:`, position);
+            console.log(`Created ninja stick figure for ${playerId} at position:`, position);
             return group;
         }
 
