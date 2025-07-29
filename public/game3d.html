@@ -1639,16 +1639,29 @@
 
             // Start game button
             document.getElementById('startGameBtn').addEventListener('click', () => {
+                console.log('Start game clicked. Mode:', gameMode);
+                
                 if (gameMode === 'singleplayer') {
                     // Start single player game
+                    console.log('Starting solo mission...');
                     isGameActive = true;
                     gameStartTime = Date.now() / 1000;
                     
-                    // Spawn bots
-                    spawnBots(3); // Spawn 3 bots
+                    // Ensure my marine is spawned first
+                    if (!myPlayer) {
+                        console.log('Emergency marine deployment...');
+                        const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                        myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
+                        scene.add(myPlayer);
+                        camera.position.set(0, 8, 15);
+                        camera.lookAt(0, 2, -8);
+                    }
+                    
+                    // Deploy enemy marines (bots)
+                    spawnBots(3);
                     
                     updateGameState();
-                    showNotification('🥷 Single player game started! Find and ban the @bastral!');
+                    showNotification('🪖 MARINES DEPLOYED! Locate and eliminate the TARGET!');
                     
                 } else if (websocket && websocket.readyState === WebSocket.OPEN) {
                     // Start multiplayer game
