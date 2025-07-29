@@ -1034,20 +1034,20 @@
 
         // Bot Management System
         function spawnBots(count = 3) {
-            console.log(`Spawning ${count} bots for single player mode`);
+            console.log(`Deploying ${count} enemy marines for solo mission`);
             
-            const botNames = ['Neo', 'Sensei', 'Shadow', 'Blade', 'Storm', 'Viper', 'Ghost', 'Kai'];
+            const botCallsigns = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GHOST', 'HAWK'];
             
             for (let i = 0; i < count; i++) {
-                const botId = botNames[i] || `Bot_${i}`;
+                const botId = botCallsigns[i] || `BOT_${i}`;
                 const spawnPosition = {
-                    x: (Math.random() - 0.5) * 30, // Random X position
-                    y: Math.random() * 3 + 1, // Start low on wall
-                    z: -8 + Math.random() * 4, // Near the climbing wall
+                    x: (Math.random() - 0.5) * 35,
+                    y: Math.random() * 4 + 1, // Start low on mountain
+                    z: -12 + Math.random() * 6, // Near the icy wall
                     rotation_y: Math.random() * Math.PI * 2
                 };
                 
-                const botFigure = createNinjaStickFigure(botId, spawnPosition, false, true);
+                const botFigure = createMarineCombatVeteran(botId, spawnPosition, false, true);
                 bots[botId] = {
                     id: botId,
                     figure: botFigure,
@@ -1055,30 +1055,30 @@
                     lastMove: Date.now(),
                     moveDirection: { x: 0, y: 0, z: 0 },
                     isBanned: false,
-                    isAggressive: Math.random() > 0.5 // Some bots are more aggressive
+                    isAggressive: Math.random() > 0.5
                 };
                 
                 scene.add(botFigure);
             }
             
-            // Select a random bastral from bots (or player)
-            const allPlayers = [myPlayerId, ...Object.keys(bots)];
-            bastralId = allPlayers[Math.floor(Math.random() * allPlayers.length)];
+            // Select a random target from all marines
+            const allMarines = [myPlayerId, ...Object.keys(bots)];
+            bastralId = allMarines[Math.floor(Math.random() * allMarines.length)];
             
             if (bastralId === myPlayerId) {
-                updatePlayerColor(myPlayerId, 0xffd93d);
-                updatePlayerLabel(myPlayerId, `👾 @${username}`, true);
-                showNotification(`🎯 You are the @bastral! Others will try to ban you!`);
+                updatePlayerColor(myPlayerId, 0xffd700);
+                updatePlayerLabel(myPlayerId, `🎯 TARGET: ${username}`, true);
+                showNotification(`⚠️ You are the TARGET! Enemy marines will hunt you down!`);
             } else {
-                updateBotColor(bastralId, 0xffd93d);
-                updateBotLabel(bastralId, `👾 @${bastralId}`, true);
-                showNotification(`🎯 @${bastralId} is the bastral! Get close and type '/ban @bastral' to kick!`);
+                updateBotColor(bastralId, 0xffd700);
+                updateBotLabel(bastralId, `🎯 TARGET: ${bastralId}`, true);
+                showNotification(`🎯 TARGET ACQUIRED: ${bastralId}! Get close and execute the elimination!`);
             }
             
             updateBastralDisplay();
             
             // Start bot AI
-            setInterval(updateBotsAI, 100); // Update bots every 100ms
+            setInterval(updateBotsAI, 100);
         }
 
         function updateBotsAI() {
