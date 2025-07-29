@@ -1026,52 +1026,61 @@
         }
 
         function handleMovement() {
-            if (!myPlayer || !isGameActive) return;
+            if (!myPlayer) {
+                console.log('No player to move');
+                return;
+            }
 
             let moved = false;
             let newAnimationState = 'idle';
             const moveVector = new THREE.Vector3();
             const currentPosition = myPlayer.position.clone();
 
-            // Handle keyboard input
+            // Handle keyboard input with better logging
             if (keys['w'] || keys['W']) {
                 moveVector.z -= moveSpeed * 0.016; // Forward (toward wall)
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Moving forward (W)');
             }
             if (keys['s'] || keys['S']) {
                 moveVector.z += moveSpeed * 0.016; // Backward (away from wall)
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Moving backward (S)');
             }
             if (keys['a'] || keys['A']) {
                 moveVector.x -= moveSpeed * 0.016; // Left
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Moving left (A)');
             }
             if (keys['d'] || keys['D']) {
                 moveVector.x += moveSpeed * 0.016; // Right
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Moving right (D)');
             }
             if (keys[' '] || keys['climb']) {
                 moveVector.y += climbSpeed * 0.016; // Climb up
                 moved = true;
                 newAnimationState = 'climbing';
+                console.log('Climbing up (Space)');
             }
             if (keys['shift'] || keys['down']) {
                 moveVector.y -= climbSpeed * 0.016; // Climb down
                 moved = true;
                 newAnimationState = 'climbing';
+                console.log('Climbing down (Shift)');
             }
 
             if (moved) {
-                // Apply movement
+                // Apply movement to player
                 myPlayer.position.add(moveVector);
                 
                 // Keep player in bounds (climbing wall area)
                 myPlayer.position.x = Math.max(-20, Math.min(20, myPlayer.position.x));
-                myPlayer.position.y = Math.max(1.0, Math.min(18, myPlayer.position.y)); // Keep above ground, below top
+                myPlayer.position.y = Math.max(0.8, Math.min(18, myPlayer.position.y)); // Keep above ground
                 myPlayer.position.z = Math.max(-15, Math.min(10, myPlayer.position.z));
 
                 // Update rotation to face movement direction
@@ -1080,8 +1089,11 @@
                     myPlayer.rotation.y = angle;
                 }
 
-                // Send position update to server
-                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                // Visual feedback for movement
+                animateMovement(myPlayer, newAnimationState);
+
+                // Send position update to server (multiplayer) or handle locally (singleplayer)
+                if (gameMode === 'multiplayer' && websocket && websocket.readyState === WebSocket.OPEN) {
                     const positionUpdate = {
                         type: 'position_update',
                         data: {
@@ -1093,9 +1105,50 @@
                         }
                     };
                     websocket.send(JSON.stringify(positionUpdate));
+                } else if (gameMode === 'singleplayer') {
+                    // Update bots and check proximity in single player mode
+                    updateBotsAI();
                 }
 
                 console.log(`Player moved to: (${myPlayer.position.x.toFixed(2)}, ${myPlayer.position.y.toFixed(2)}, ${myPlayer.position.z.toFixed(2)})`);
+            }
+        }
+
+        function animateMovement(player, animationState) {
+            if (!player || !player.userData.bodyParts) return;
+            
+            const parts = player.userData.bodyParts;
+            const time = Date.now() * 0.005;
+            
+            switch (animationState) {
+                case 'walking':
+                    // Walking animation - swing arms and legs
+                    parts.leftUpperArm.rotation.x = Math.sin(time * 4) * 0.5;
+                    parts.rightUpperArm.rotation.x = -Math.sin(time * 4) * 0.5;
+                    parts.leftUpperLeg.rotation.x = -Math.sin(time * 4) * 0.3;
+                    parts.rightUpperLeg.rotation.x = Math.sin(time * 4) * 0.3;
+                    break;
+                    
+                case 'climbing':
+                    // Climbing animation - alternating arm reach
+                    parts.leftUpperArm.rotation.x = Math.sin(time * 3) * 0.8;
+                    parts.rightUpperArm.rotation.x = -Math.sin(time * 3) * 0.8;
+                    parts.leftUpperLeg.rotation.x = Math.sin(time * 2) * 0.4;
+                    parts.rightUpperLeg.rotation.x = -Math.sin(time * 2) * 0.4;
+                    break;
+                    
+                case 'kicking':
+                    // Kick animation
+                    parts.rightUpperLeg.rotation.x = Math.PI / 3;
+                    setTimeout(() => {
+                        if (parts.rightUpperLeg) parts.rightUpperLeg.rotation.x = 0;
+                    }, 500);
+                    break;
+                    
+                default:
+                    // Idle animation - slight breathing
+                    parts.body.scale.y = 1 + Math.sin(time) * 0.02;
+                    break;
             }
         }
 
