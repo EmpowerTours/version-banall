@@ -4,12 +4,15 @@
 Fix 3D military mountain warfare game where marine characters aren't visually spawning despite game logic working. Marines should be visible, movable with WASD controls, and the UI should update properly after starting the game.
 
 ## Additional Requirements
-- Web3 integration with Monad testnet (chainId: 10143)
-- Bot AI simulation with pathfinding
-- Multisynq API integration for real-time sync
-- Large Mt Everest-style environment for 100+ players
-- Telegram and Farcaster integration
-- PostgreSQL database integration
+- ✅ Web3 integration with Monad testnet (chainId: 10143) - IMPLEMENTED
+- ✅ MetaMask and WalletConnect support - IMPLEMENTED  
+- ✅ Entry fee payment (0.00001 MON) - IMPLEMENTED
+- ✅ $TOURS token integration - PARTIAL (contract address configured)
+- 🔄 Bot AI simulation with pathfinding - PENDING
+- 🔄 Multisynq API integration for real-time sync - PENDING
+- 🔄 Large Mt Everest-style environment for 100+ players - IMPLEMENTED
+- 🔄 Telegram and Farcaster integration - EXISTING (needs enhancement)
+- 🔄 PostgreSQL database integration - EXISTING (needs enhancement)
 
 ## Testing Protocol
 
