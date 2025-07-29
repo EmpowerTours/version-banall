@@ -1942,7 +1942,7 @@
         }
 
         function updateGameState() {
-            console.log('Updating game state. Mode:', gameMode, 'Scene exists:', !!scene);
+            console.log('🔄 UPDATING GAME STATE. Mode:', gameMode, 'Scene exists:', !!scene, 'My player exists:', !!myPlayer);
 
             if (gameMode === 'singleplayer') {
                 // Single player mode
@@ -1952,31 +1952,35 @@
                 if (isGameActive) {
                     statusElement.textContent = 'OPERATION ACTIVE - Eliminate the TARGET!';
                     statusElement.style.color = '#ff0000';
+                    // HIDE START BUTTON WHEN GAME IS ACTIVE
+                    document.getElementById('startGameBtn').style.display = 'none';
                 } else {
                     statusElement.textContent = 'Solo Mission - Ready for Deployment!';
                     statusElement.style.color = '#6bcf7f';
                     document.getElementById('startGameBtn').style.display = 'block';
                 }
                 
-                // FORCE CREATE MY MARINE - This is critical!
-                if (!myPlayer && scene) {
-                    console.log('FORCE DEPLOYING marine in solo mission:', myPlayerId, username);
-                    const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                // FORCE SPAWN MY MARINE IMMEDIATELY
+                if (!myPlayer && scene && THREE) {
+                    console.log('🚁 FORCE SPAWNING MY MARINE:', myPlayerId, username);
+                    const myPosition = { x: 0, y: 0, z: -5, rotation_y: 0 };
                     myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
-                    scene.add(myPlayer);
                     
-                    // Set camera for mountain warfare
-                    if (camera) {
-                        camera.position.set(0, 8, 15);
-                        camera.lookAt(0, 2, -8);
+                    if (myPlayer) {
+                        scene.add(myPlayer);
+                        console.log('✅ MY MARINE ADDED TO SCENE!');
+                        
+                        // Set camera to follow my marine
+                        if (camera) {
+                            camera.position.set(myPlayer.position.x, myPlayer.position.y + 8, myPlayer.position.z + 15);
+                            camera.lookAt(myPlayer.position.x, myPlayer.position.y, myPlayer.position.z);
+                        }
+                        
+                        showNotification(`🪖 Marine ${username} deployed and ready!`);
+                    } else {
+                        console.error('❌ FAILED TO CREATE MY MARINE!');
+                        showNotification('⚠️ Marine deployment failed - check console');
                     }
-                    
-                    console.log('✅ Marine deployed successfully:', myPlayer);
-                    showNotification(`🪖 Marine ${username} deployed to mountain base!`);
-                } else if (!scene) {
-                    console.warn('No 3D scene available - creating marine in fallback mode');
-                    // Create a visual indicator even without 3D
-                    showNotification(`🪖 Marine ${username} ready (2D mode)`);
                 }
                 
             } else if (gameRoom) {
@@ -2000,21 +2004,23 @@
                 for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
                     if (playerId === myPlayerId) {
                         if (!myPlayer && scene) {
-                            console.log('Deploying my marine:', playerId);
+                            console.log('🚁 Deploying my marine (multiplayer):', playerId);
                             myPlayer = createMarineCombatVeteran(playerId, playerData.position, true, false);
-                            scene.add(myPlayer);
-                            
-                            if (camera) {
-                                camera.position.set(
-                                    playerData.position.x,
-                                    playerData.position.y + 8,
-                                    playerData.position.z + 15
-                                );
+                            if (myPlayer) {
+                                scene.add(myPlayer);
+                                
+                                if (camera) {
+                                    camera.position.set(
+                                        playerData.position.x,
+                                        playerData.position.y + 8,
+                                        playerData.position.z + 15
+                                    );
+                                }
                             }
                         }
                     } else {
                         if (!players[playerId] && scene) {
-                            console.log('Deploying ally marine:', playerId);
+                            console.log('🚁 Deploying ally marine:', playerId);
                             addPlayer(playerData);
                         }
                     }
@@ -2022,7 +2028,7 @@
             }
 
             updateBastralDisplay();
-            console.log('✅ Game state updated. My marine exists:', !!myPlayer, 'Ally marines:', Object.keys(players).length, 'Enemy bots:', Object.keys(bots).length);
+            console.log('✅ GAME STATE UPDATED. My marine exists:', !!myPlayer, 'Ally marines:', Object.keys(players).length, 'Enemy bots:', Object.keys(bots).length);
         }
 
         function updateGameTimer(secondsLeft = null) {
