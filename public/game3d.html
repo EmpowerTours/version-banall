@@ -1024,7 +1024,7 @@
                     // Create my player if not exists
                     if (!myPlayer && gameRoom.players && gameRoom.players[myPlayerId]) {
                         const myPlayerData = gameRoom.players[myPlayerId];
-                        myPlayer = createStickFigure(myPlayerId, myPlayerData.position, true);
+                        myPlayer = createNinjaStickFigure(myPlayerId, myPlayerData.position, true, false);
                         scene.add(myPlayer);
                         
                         // Set camera to follow player
