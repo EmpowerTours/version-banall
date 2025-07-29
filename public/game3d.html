@@ -1679,61 +1679,69 @@
 
         function handleMovement() {
             if (!myPlayer) {
-                console.log('No player to move');
+                console.log('No marine to move - attempting to spawn...');
+                // Try to spawn marine if not exists
+                if (gameMode === 'singleplayer') {
+                    const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                    myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
+                    scene.add(myPlayer);
+                    camera.position.set(0, 8, 15);
+                    camera.lookAt(0, 2, -8);
+                    console.log('Emergency marine deployed during movement!');
+                }
                 return;
             }
 
             let moved = false;
             let newAnimationState = 'idle';
             const moveVector = new THREE.Vector3();
-            const currentPosition = myPlayer.position.clone();
 
             // Handle keyboard input with better logging
             if (keys['w'] || keys['W']) {
                 moveVector.z -= moveSpeed * 0.016; // Forward (toward wall)
                 moved = true;
                 newAnimationState = 'walking';
-                console.log('Moving forward (W)');
+                console.log('Marine moving forward (W)');
             }
             if (keys['s'] || keys['S']) {
                 moveVector.z += moveSpeed * 0.016; // Backward (away from wall)
                 moved = true;
                 newAnimationState = 'walking';
-                console.log('Moving backward (S)');
+                console.log('Marine moving backward (S)');
             }
             if (keys['a'] || keys['A']) {
                 moveVector.x -= moveSpeed * 0.016; // Left
                 moved = true;
                 newAnimationState = 'walking';
-                console.log('Moving left (A)');
+                console.log('Marine moving left (A)');
             }
             if (keys['d'] || keys['D']) {
                 moveVector.x += moveSpeed * 0.016; // Right
                 moved = true;
                 newAnimationState = 'walking';
-                console.log('Moving right (D)');
+                console.log('Marine moving right (D)');
             }
             if (keys[' '] || keys['climb']) {
                 moveVector.y += climbSpeed * 0.016; // Climb up
                 moved = true;
                 newAnimationState = 'climbing';
-                console.log('Climbing up (Space)');
+                console.log('Marine climbing up (Space)');
             }
             if (keys['shift'] || keys['down']) {
                 moveVector.y -= climbSpeed * 0.016; // Climb down
                 moved = true;
                 newAnimationState = 'climbing';
-                console.log('Climbing down (Shift)');
+                console.log('Marine climbing down (Shift)');
             }
 
             if (moved) {
-                // Apply movement to player
+                // Apply movement to marine
                 myPlayer.position.add(moveVector);
                 
-                // Keep player in bounds (climbing wall area)
-                myPlayer.position.x = Math.max(-20, Math.min(20, myPlayer.position.x));
-                myPlayer.position.y = Math.max(0.8, Math.min(18, myPlayer.position.y)); // Keep above ground
-                myPlayer.position.z = Math.max(-15, Math.min(10, myPlayer.position.z));
+                // Keep marine in bounds (mountain area)
+                myPlayer.position.x = Math.max(-25, Math.min(25, myPlayer.position.x));
+                myPlayer.position.y = Math.max(1.0, Math.min(20, myPlayer.position.y)); // Keep above ground
+                myPlayer.position.z = Math.max(-18, Math.min(12, myPlayer.position.z));
 
                 // Update rotation to face movement direction
                 if (moveVector.x !== 0 || moveVector.z !== 0) {
@@ -1762,7 +1770,12 @@
                     updateBotsAI();
                 }
 
-                console.log(`Player moved to: (${myPlayer.position.x.toFixed(2)}, ${myPlayer.position.y.toFixed(2)}, ${myPlayer.position.z.toFixed(2)})`);
+                // Update camera to follow marine
+                if (controls && controls.target) {
+                    controls.target.set(myPlayer.position.x, myPlayer.position.y, myPlayer.position.z);
+                }
+
+                console.log(`Marine moved to: (${myPlayer.position.x.toFixed(2)}, ${myPlayer.position.y.toFixed(2)}, ${myPlayer.position.z.toFixed(2)})`);
             }
         }
 
