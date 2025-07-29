@@ -2188,27 +2188,38 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            handleMovement();
-            
-            if (controls && controls.update) {
-                controls.update();
+            // Only animate if we have a proper 3D scene
+            if (!renderer || !scene || !camera) {
+                return;
             }
             
-            // Update camera to follow player
-            if (myPlayer) {
-                const targetPosition = new THREE.Vector3(
-                    myPlayer.position.x,
-                    myPlayer.position.y + 8,
-                    myPlayer.position.z + 12
-                );
-                camera.position.lerp(targetPosition, 0.05);
+            try {
+                handleMovement();
                 
-                if (controls && controls.target) {
-                    controls.target.lerp(myPlayer.position, 0.05);
+                if (controls && controls.update) {
+                    controls.update();
                 }
+                
+                // Update camera to follow player
+                if (myPlayer && camera) {
+                    const targetPosition = new THREE.Vector3(
+                        myPlayer.position.x,
+                        myPlayer.position.y + 8,
+                        myPlayer.position.z + 12
+                    );
+                    camera.position.lerp(targetPosition, 0.05);
+                    
+                    if (controls && controls.target) {
+                        controls.target.lerp(myPlayer.position, 0.05);
+                    }
+                }
+                
+                renderer.render(scene, camera);
+                
+            } catch (error) {
+                // Silently handle animation errors to prevent crashes
+                console.warn('Animation error (non-critical):', error);
             }
-            
-            renderer.render(scene, camera);
         }
 
         function addPlayer(playerData) {
