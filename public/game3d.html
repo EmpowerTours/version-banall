@@ -916,15 +916,15 @@
                 scene.add(equipment);
             }
 
-            // WEATHER EFFECTS - Add snow particles
+            // ENHANCED WEATHER EFFECTS - Snow particles for massive Mt Everest environment  
             const snowGeometry = new THREE.BufferGeometry();
-            const snowCount = 1000;
+            const snowCount = 2000; // More snow for larger environment
             const positions = new Float32Array(snowCount * 3);
 
             for (let i = 0; i < snowCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 200;     // x
-                positions[i + 1] = Math.random() * 100 + 10;    // y  
-                positions[i + 2] = (Math.random() - 0.5) * 200; // z
+                positions[i] = (Math.random() - 0.5) * 400;     // x - Much wider snow coverage
+                positions[i + 1] = Math.random() * 150 + 10;    // y - Higher snow ceiling  
+                positions[i + 2] = (Math.random() - 0.5) * 400; // z - Deeper snow coverage
             }
 
             snowGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
