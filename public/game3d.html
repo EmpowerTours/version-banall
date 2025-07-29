@@ -1812,26 +1812,26 @@
                 
                 // Create my player if not exists
                 if (!myPlayer) {
-                    console.log('Creating my player in single player mode:', myPlayerId);
-                    const myPosition = { x: 0, y: 0, z: -2, rotation_y: 0 };
-                    myPlayer = createNinjaStickFigure(myPlayerId, myPosition, true, false);
+                    console.log('Deploying my marine in solo mission:', myPlayerId);
+                    const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                    myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
                     scene.add(myPlayer);
                     
-                    // Set camera to follow player
-                    camera.position.set(0, 5, 10);
+                    // Set camera for mountain warfare
+                    camera.position.set(0, 8, 15);
                 }
                 
             } else {
                 // Multiplayer mode
-                document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
+                document.getElementById('playerCount').textContent = `Marines: ${Object.keys(gameRoom.players || {}).length}`;
 
                 const statusElement = document.getElementById('gameStatus');
                 if (gameRoom.is_active) {
-                    statusElement.textContent = 'GAME ACTIVE - Find and ban @bastral!';
-                    statusElement.style.color = '#ff6b6b';
+                    statusElement.textContent = 'OPERATION ACTIVE - Eliminate the TARGET!';
+                    statusElement.style.color = '#ff0000';
                     document.getElementById('startGameBtn').style.display = 'none';
                 } else {
-                    statusElement.textContent = 'Waiting for game to start...';
+                    statusElement.textContent = 'Awaiting mission deployment...';
                     statusElement.style.color = '#6bcf7f';
                     if (Object.keys(gameRoom.players || {}).length >= 2) {
                         document.getElementById('startGameBtn').style.display = 'block';
@@ -1842,19 +1842,19 @@
                 for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
                     if (playerId === myPlayerId) {
                         if (!myPlayer) {
-                            console.log('Creating my player:', playerId);
-                            myPlayer = createNinjaStickFigure(playerId, playerData.position, true, false);
+                            console.log('Deploying my marine:', playerId);
+                            myPlayer = createMarineCombatVeteran(playerId, playerData.position, true, false);
                             scene.add(myPlayer);
                             
                             camera.position.set(
                                 playerData.position.x,
-                                playerData.position.y + 5,
-                                playerData.position.z + 10
+                                playerData.position.y + 8,
+                                playerData.position.z + 15
                             );
                         }
                     } else {
                         if (!players[playerId]) {
-                            console.log('Creating other player:', playerId);
+                            console.log('Deploying ally marine:', playerId);
                             addPlayer(playerData);
                         }
                     }
