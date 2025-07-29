@@ -1792,25 +1792,23 @@
         }
 
         function updateGameState() {
-            if (!gameRoom && gameMode === 'multiplayer') return;
-
-            console.log('Updating game state:', gameRoom);
+            console.log('Updating game state. Mode:', gameMode, 'GameRoom:', gameRoom);
 
             if (gameMode === 'singleplayer') {
                 // Single player mode
-                document.getElementById('playerCount').textContent = `Players: ${1 + Object.keys(bots).length}`;
+                document.getElementById('playerCount').textContent = `Marines: ${1 + Object.keys(bots).length}`;
                 
                 const statusElement = document.getElementById('gameStatus');
                 if (isGameActive) {
-                    statusElement.textContent = 'SINGLE PLAYER - Find and ban @bastral!';
-                    statusElement.style.color = '#ff6b6b';
+                    statusElement.textContent = 'OPERATION ACTIVE - Eliminate the TARGET!';
+                    statusElement.style.color = '#ff0000';
                 } else {
-                    statusElement.textContent = 'Single Player Mode - Get Ready!';
+                    statusElement.textContent = 'Solo Mission - Ready for Deployment!';
                     statusElement.style.color = '#6bcf7f';
                     document.getElementById('startGameBtn').style.display = 'block';
                 }
                 
-                // Create my player if not exists
+                // Create my marine if not exists
                 if (!myPlayer) {
                     console.log('Deploying my marine in solo mission:', myPlayerId);
                     const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
@@ -1819,9 +1817,12 @@
                     
                     // Set camera for mountain warfare
                     camera.position.set(0, 8, 15);
+                    camera.lookAt(0, 2, -8);
+                    
+                    console.log('Marine deployed successfully:', myPlayer);
                 }
                 
-            } else {
+            } else if (gameRoom) {
                 // Multiplayer mode
                 document.getElementById('playerCount').textContent = `Marines: ${Object.keys(gameRoom.players || {}).length}`;
 
@@ -1862,7 +1863,7 @@
             }
 
             updateBastralDisplay();
-            console.log('Game state updated. My player exists:', !!myPlayer, 'Other players:', Object.keys(players).length, 'Bots:', Object.keys(bots).length);
+            console.log('Game state updated. My marine exists:', !!myPlayer, 'Ally marines:', Object.keys(players).length, 'Enemy bots:', Object.keys(bots).length);
         }
 
         function updateGameTimer(secondsLeft = null) {
