@@ -10,15 +10,14 @@ import Web3 from 'web3';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Pool } from 'pg';
-import debounce from 'lodash/debounce'; // For lag prevention
-import { Multisynq } from '@multisynq/sdk';
+import debounce from 'lodash/debounce';
+import * as Multisynq from '@multisynq/client';
 
 // Postgres pool
 const pgPool = new Pool({ connectionString: 'postgresql://postgres:ZeyMkvenyYVjKQeOmMzTlCUuHLZOUWiy@gondola.proxy.rlwy.net:5432/railway' });
 
 // Multisynq init
-const multisynq = new Multisynq({ apiKey: '2UPB8vM6BUPmKqgPaBN1Trg89GfX6qzddlZZ270GFJ' });
-const room = multisynq.room('banall-chat');
+let multisynqSession: any; // Session object
 
 // Custom Monad Testnet chain
 const monadTestnet = {
@@ -884,8 +883,8 @@ function BanallContent() {
     }
     const interval = setInterval(checkGameState, 1000);
     init3D(); // Init Three.js
-    room.join();
-    room.on('message', (data) => {
+    multisynqSession = Multisynq.Session.join({ apiKey: '2UPB8vM6BUPmKqgPaBN1Trg89GfX6qzddlZZ270GFJ', roomName: 'banall-chat' }); // Correct init
+    multisynqSession.on('update', (data: any) => {
       if (data.type === 'state') setPlayers(data.players);
     });
     return () => clearInterval(interval);
@@ -965,7 +964,7 @@ function BanallContent() {
       setMessages((prev) => [...prev, `${username} joined`]);
       setUsername('');
       setFarcasterFid('0');
-      room.send({ type: 'state', players });
+      multisynqSession.update({ type: 'state', players });
     } catch (error) {
       alert('Profile creation failed: ' + (error as Error).message);
     }
@@ -986,7 +985,7 @@ function BanallContent() {
       }));
       await pgPool.query('UPDATE users SET is_spectator = FALSE WHERE wallet = $1', [account]);
       setMessages((prev) => [...prev, `${players[account!]?.username} joined the game`]);
-      room.send({ type: 'state', players });
+      multisynqSession.update({ type: 'state', players });
     } catch (error) {
       alert('Join game failed: ' + (error as Error).message);
     }
@@ -1006,7 +1005,7 @@ function BanallContent() {
       }));
       await pgPool.query('UPDATE users SET is_spectator = TRUE WHERE wallet = $1', [account]);
       setMessages((prev) => [...prev, `${players[account!]?.username} joined as spectator`]);
-      room.send({ type: 'state', players });
+      multisynqSession.update({ type: 'state', players });
     } catch (error) {
       alert('Spectate failed: ' + (error as Error).message);
     }
@@ -1038,7 +1037,7 @@ function BanallContent() {
         const newBastral = Object.keys(players).find((w) => !players[w].isBanned && !players[w].isSpectator && w !== bastral) || null;
         setBastral(newBastral);
         setChatInput('');
-        room.send({ type: 'state', players });
+        multisynqSession.update({ type: 'state', players });
       } catch (error) {
         alert('Ban failed: ' + (error as Error).message);
       }
@@ -1064,7 +1063,7 @@ function BanallContent() {
             [botAddress]: { ...prev[botAddress], toursBalance: (prev[botAddress]?.toursBalance || 0) + 1e18 },
           }));
           setMessages((prev) => [...prev, `${botUsername} banned ${players[bastral]?.username}! +1 $TOURS`]);
-          room.send({ type: 'state', players });
+          multisynqSession.update({ type: 'state', players });
         }
       }, random(1000, 5000)));
     }
