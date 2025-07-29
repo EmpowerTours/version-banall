@@ -838,49 +838,63 @@
         }
 
         function handleMovement() {
-            if (!myPlayer) return;
+            if (!myPlayer || !isGameActive) return;
 
             let moved = false;
             let newAnimationState = 'idle';
             const moveVector = new THREE.Vector3();
+            const currentPosition = myPlayer.position.clone();
 
-            if (keys['w']) {
-                moveVector.z -= moveSpeed * 0.016;
+            // Handle keyboard input
+            if (keys['w'] || keys['W']) {
+                moveVector.z -= moveSpeed * 0.016; // Forward (toward wall)
                 moved = true;
                 newAnimationState = 'walking';
             }
-            if (keys['s']) {
-                moveVector.z += moveSpeed * 0.016;
+            if (keys['s'] || keys['S']) {
+                moveVector.z += moveSpeed * 0.016; // Backward (away from wall)
                 moved = true;
                 newAnimationState = 'walking';
             }
-            if (keys['a']) {
-                moveVector.x -= moveSpeed * 0.016;
+            if (keys['a'] || keys['A']) {
+                moveVector.x -= moveSpeed * 0.016; // Left
                 moved = true;
                 newAnimationState = 'walking';
             }
-            if (keys['d']) {
-                moveVector.x += moveSpeed * 0.016;
+            if (keys['d'] || keys['D']) {
+                moveVector.x += moveSpeed * 0.016; // Right
                 moved = true;
                 newAnimationState = 'walking';
             }
-            if (keys[' ']) {
-                moveVector.y += climbSpeed * 0.016;
+            if (keys[' '] || keys['climb']) {
+                moveVector.y += climbSpeed * 0.016; // Climb up
+                moved = true;
+                newAnimationState = 'climbing';
+            }
+            if (keys['shift'] || keys['down']) {
+                moveVector.y -= climbSpeed * 0.016; // Climb down
                 moved = true;
                 newAnimationState = 'climbing';
             }
 
-            if (moved && myPlayer) {
+            if (moved) {
+                // Apply movement
                 myPlayer.position.add(moveVector);
                 
-                // Keep player in bounds
+                // Keep player in bounds (climbing wall area)
                 myPlayer.position.x = Math.max(-20, Math.min(20, myPlayer.position.x));
-                myPlayer.position.y = Math.max(0, Math.min(15, myPlayer.position.y));
-                myPlayer.position.z = Math.max(-15, Math.min(15, myPlayer.position.z));
+                myPlayer.position.y = Math.max(1.0, Math.min(18, myPlayer.position.y)); // Keep above ground, below top
+                myPlayer.position.z = Math.max(-15, Math.min(10, myPlayer.position.z));
+
+                // Update rotation to face movement direction
+                if (moveVector.x !== 0 || moveVector.z !== 0) {
+                    const angle = Math.atan2(moveVector.x, moveVector.z);
+                    myPlayer.rotation.y = angle;
+                }
 
                 // Send position update to server
-                if (websocket) {
-                    websocket.send(JSON.stringify({
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    const positionUpdate = {
                         type: 'position_update',
                         data: {
                             x: myPlayer.position.x,
@@ -889,8 +903,11 @@
                             rotation_y: myPlayer.rotation.y,
                             animation_state: newAnimationState
                         }
-                    }));
+                    };
+                    websocket.send(JSON.stringify(positionUpdate));
                 }
+
+                console.log(`Player moved to: (${myPlayer.position.x.toFixed(2)}, ${myPlayer.position.y.toFixed(2)}, ${myPlayer.position.z.toFixed(2)})`);
             }
         }
 
