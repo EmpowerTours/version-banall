@@ -1034,10 +1034,35 @@
                 }
             };
             
-            document.getElementById('startMissionBtn').onclick = () => {
-                window.selectedEquipment = selectedEquipment;
-                document.body.removeChild(equipModal);
-                showUsernameInput();
+            document.getElementById('startMissionBtn').onclick = async () => {
+                // Check if wallet is connected
+                if (!isWalletConnected) {
+                    showNotification('❌ Please connect your wallet first!');
+                    return;
+                }
+                
+                // Check equipment selection
+                if (!selectedEquipment) {
+                    showNotification('⚠️ Please select your tactical equipment!');
+                    return;
+                }
+                
+                // Pay entry fee
+                const entryBtn = document.getElementById('startMissionBtn');
+                entryBtn.textContent = '💳 PAYING ENTRY FEE...';
+                entryBtn.disabled = true;
+                
+                const paymentSuccess = await payEntryFee();
+                
+                if (paymentSuccess) {
+                    entryBtn.textContent = '🎯 DEPLOYING TO MOUNTAIN...';
+                    window.selectedEquipment = selectedEquipment;
+                    document.body.removeChild(equipModal);
+                    showUsernameInput();
+                } else {
+                    entryBtn.textContent = '🎯 START MISSION';
+                    entryBtn.disabled = false;
+                }
             };
         }
 
