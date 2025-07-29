@@ -1530,10 +1530,10 @@
                 if (event.key === 'Enter') {
                     const message = event.target.value.trim();
                     if (message) {
-                        console.log('Sending chat message:', message);
+                        console.log('Sending tactical message:', message);
                         
-                        // Handle ban command
-                        if (message.toLowerCase() === '/ban @bastral') {
+                        // Handle elimination command
+                        if (message.toLowerCase() === '/eliminate target' || message.toLowerCase() === '/ban @bastral') {
                             handlePlayerBanAttempt();
                         }
                         
