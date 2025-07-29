@@ -1577,7 +1577,7 @@ async def root():
 
 @app.get("/public/{path:path}")
 async def serve_public(path: str):
-    file_path = f"public/{path}"
+    file_path = f"/app/public/{path}"
     if os.path.exists(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
