@@ -324,6 +324,13 @@
         let climbSpeed = 5;
         let isClimbing = false;
 
+        // Web3 Wallet Connection Variables
+        let web3 = null;
+        let walletAddress = null;
+        let isWalletConnected = false;
+        let walletBalance = 0;
+        let toursBalance = 0;
+        
         // Initialize Telegram Web App
         const WebApp = window.Telegram?.WebApp;
         let userId = null;
