@@ -498,43 +498,121 @@
             }
         }
 
-        function createClimbingWall() {
-            // Main climbing wall
-            const wallGeometry = new THREE.BoxGeometry(30, 20, 2);
-            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        function createMountainEnvironment() {
+            // SNOWY MOUNTAIN TERRAIN
+            const mountainGeometry = new THREE.ConeGeometry(25, 30, 8);
+            const mountainMaterial = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 }); // Snow white
+            const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+            mountain.position.set(0, 15, -20);
+            mountain.castShadow = true;
+            mountain.receiveShadow = true;
+            scene.add(mountain);
+
+            // ICY CLIMBING WALL - Main combat area
+            const wallGeometry = new THREE.BoxGeometry(40, 25, 3);
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb }); // Icy blue
             const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-            wall.position.set(0, 10, -10);
+            wall.position.set(0, 12.5, -15);
             wall.castShadow = true;
             wall.receiveShadow = true;
             scene.add(wall);
 
-            // Add climbing holds
-            for (let i = 0; i < 20; i++) {
-                const holdGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-                const colors = [0xff6b6b, 0x4ecdc4, 0xffd93d, 0x6bcf7f];
-                const holdMaterial = new THREE.MeshLambertMaterial({ 
-                    color: colors[Math.floor(Math.random() * colors.length)] 
-                });
-                const hold = new THREE.Mesh(holdGeometry, holdMaterial);
-                
-                hold.position.set(
-                    (Math.random() - 0.5) * 25,
-                    Math.random() * 15 + 2,
-                    -8.5
+            // Add ice patches and rocky outcrops
+            for (let i = 0; i < 30; i++) {
+                const rockGeometry = new THREE.BoxGeometry(
+                    Math.random() * 2 + 0.5,
+                    Math.random() * 1.5 + 0.3, 
+                    Math.random() * 1 + 0.2
                 );
-                hold.castShadow = true;
-                scene.add(hold);
+                const isIce = Math.random() > 0.6;
+                const rockMaterial = new THREE.MeshLambertMaterial({ 
+                    color: isIce ? 0xb0e0e6 : 0x696969 // Ice blue or dark gray
+                });
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                
+                rock.position.set(
+                    (Math.random() - 0.5) * 35,
+                    Math.random() * 20 + 2,
+                    -15 + Math.random() * 2
+                );
+                rock.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                rock.castShadow = true;
+                rock.receiveShadow = true;
+                scene.add(rock);
             }
 
-            // Add safety mats
-            for (let i = -3; i <= 3; i++) {
-                const matGeometry = new THREE.BoxGeometry(4, 0.5, 4);
-                const matMaterial = new THREE.MeshLambertMaterial({ color: 0x0066cc });
-                const mat = new THREE.Mesh(matGeometry, matMaterial);
-                mat.position.set(i * 5, 0.25, -5);
-                mat.castShadow = true;
-                scene.add(mat);
+            // SNOWY GROUND with trenches
+            const groundGeometry = new THREE.PlaneGeometry(80, 80);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Pure white snow
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add trenches and foxholes
+            for (let i = 0; i < 5; i++) {
+                const trenchGeometry = new THREE.BoxGeometry(8, 0.5, 2);
+                const trenchMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown dirt
+                const trench = new THREE.Mesh(trenchGeometry, trenchMaterial);
+                trench.position.set(
+                    (Math.random() - 0.5) * 60,
+                    -0.2,
+                    Math.random() * 10 + 5
+                );
+                trench.receiveShadow = true;
+                scene.add(trench);
             }
+
+            // MILITARY EQUIPMENT scattered around
+            for (let i = 0; i < 15; i++) {
+                const equipGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.5);
+                const equipMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f }); // Military green
+                const equipment = new THREE.Mesh(equipGeometry, equipMaterial);
+                equipment.position.set(
+                    (Math.random() - 0.5) * 70,
+                    0.15,
+                    Math.random() * 20
+                );
+                equipment.castShadow = true;
+                scene.add(equipment);
+            }
+
+            // WEATHER EFFECTS - Add snow particles
+            const snowGeometry = new THREE.BufferGeometry();
+            const snowCount = 1000;
+            const positions = new Float32Array(snowCount * 3);
+
+            for (let i = 0; i < snowCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 200;     // x
+                positions[i + 1] = Math.random() * 100 + 10;    // y  
+                positions[i + 2] = (Math.random() - 0.5) * 200; // z
+            }
+
+            snowGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const snowMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+            const snow = new THREE.Points(snowGeometry, snowMaterial);
+            scene.add(snow);
+
+            // Animate falling snow
+            setInterval(() => {
+                const positions = snow.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] -= 0.1; // Fall down
+                    if (positions[i] < -10) {
+                        positions[i] = 100; // Reset to top
+                    }
+                }
+                snow.geometry.attributes.position.needsUpdate = true;
+            }, 50);
         }
 
         function createNinjaStickFigure(playerId, position, isMe = false, isBot = false) {
