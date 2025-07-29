@@ -3,5 +3,7 @@ window.env = {
   BANALL_CONTRACT_ADDRESS: "0xA1c0D8B252A7e58b5598A8915C9AC0e794a2eC5A",
   API_BASE_URL: "https://web-production-5f438.up.railway.app",
   MONAD_RPC_URL: "https://rpc.ankr.com/monad_testnet",
-  MONAD_CHAIN_ID: 10143
+  MONAD_CHAIN_ID: 10143,
+  WALLET_CONNECT_PROJECT_ID: "72e05c45-7562-4729-a604-f4a2b44ccb3e",
+  ENTRY_FEE_MON: "0.00001"
 };

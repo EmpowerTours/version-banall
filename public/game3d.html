@@ -8,6 +8,9 @@
     <script src="/public/env.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Web3 Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@4.2.0/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -259,8 +262,8 @@
 <body>
     <div id="loadingScreen">
         <div class="loader"></div>
-        <h2>Loading BAN@LL 3D Game...</h2>
-        <p>Connecting to climbing wall...</p>
+        <h2>Deploying to Mountain Base...</h2>
+        <p>Establishing tactical connection...</p>
     </div>
 
     <div id="gameContainer">
@@ -304,6 +307,7 @@
         // Game variables
         let scene, camera, renderer, controls;
         let players = {};
+        let bots = {};
         let myPlayerId = null;
         let myPlayer = null;
         let gameRoom = null;
@@ -311,20 +315,300 @@
         let isGameActive = false;
         let bastralId = null;
         let gameStartTime = 0;
+        let gameMode = 'multiplayer'; // 'multiplayer' or 'singleplayer'
+        let username = '';
 
         // Movement variables
         let keys = {};
-        let moveSpeed = 5;
-        let climbSpeed = 3;
+        let moveSpeed = 8;
+        let climbSpeed = 5;
         let isClimbing = false;
 
+        // Web3 Wallet Connection Variables
+        let web3 = null;
+        let walletAddress = null;
+        let isWalletConnected = false;
+        let walletBalance = 0;
+        let toursBalance = 0;
+        
         // Initialize Telegram Web App
         const WebApp = window.Telegram?.WebApp;
         let userId = null;
 
+        // Show username input first
+        async function showUsernameInput() {
+            const usernameModal = document.createElement('div');
+            usernameModal.id = 'usernameModal';
+            usernameModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(44,44,44,0.9) 100%);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 2000;
+                color: white;
+                font-family: 'Courier New', monospace;
+            `;
+            
+            usernameModal.innerHTML = `
+                <div style="text-align: center; background: rgba(85,107,47,0.3); padding: 50px; border-radius: 10px; backdrop-filter: blur(10px); border: 2px solid #556b2f;">
+                    <h2 style="color: #ffd700; margin-bottom: 20px; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">⚔️ OPERATION MOUNTAIN STORM ⚔️</h2>
+                    <p style="margin-bottom: 20px; font-size: 18px; color: #87ceeb;">Enter your military callsign, Marine!</p>
+                    <input type="text" id="usernameInput" placeholder="Your callsign..." style="
+                        padding: 15px; 
+                        font-size: 16px; 
+                        border: 2px solid #556b2f; 
+                        border-radius: 5px; 
+                        margin-bottom: 30px; 
+                        width: 300px;
+                        text-align: center;
+                        background: rgba(0,0,0,0.7);
+                        color: white;
+                        font-family: 'Courier New', monospace;
+                    ">
+                    <br>
+                    <div style="margin: 20px 0;">
+                        <button id="multiplayerBtn" style="
+                            padding: 15px 30px; 
+                            margin: 10px; 
+                            background: linear-gradient(45deg, #8b0000, #dc143c); 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            font-size: 16px; 
+                            cursor: pointer;
+                            font-family: 'Courier New', monospace;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                            font-weight: bold;
+                        ">🌐 JOINT OPERATION</button>
+                        <button id="singleplayerBtn" style="
+                            padding: 15px 30px; 
+                            margin: 10px; 
+                            background: linear-gradient(45deg, #556b2f, #6b8e23); 
+                            color: white; 
+                            border: none; 
+                            border-radius: 5px; 
+                            font-size: 16px; 
+                            cursor: pointer;
+                            font-family: 'Courier New', monospace;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                            font-weight: bold;
+                        ">🎯 SOLO MISSION</button>
+                    </div>
+                    <div style="margin-top: 30px; font-size: 14px; color: #ccc; max-width: 400px; line-height: 1.4;">
+                        <strong>MISSION BRIEFING:</strong><br>
+                        Elite marines must eliminate the TARGET while climbing treacherous icy mountains. 
+                        Use tactical equipment to survive the harsh conditions. Last marine standing wins the operation.
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(usernameModal);
+            
+            document.getElementById('usernameInput').focus();
+            
+            document.getElementById('multiplayerBtn').onclick = () => {
+                const input = document.getElementById('usernameInput').value.trim();
+                username = input || 'MARINE_' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                gameMode = 'multiplayer';
+                document.body.removeChild(usernameModal);
+                init();
+            };
+            
+            document.getElementById('singleplayerBtn').onclick = () => {
+                const input = document.getElementById('usernameInput').value.trim();
+                username = input || 'MARINE_' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                gameMode = 'singleplayer';
+                document.body.removeChild(usernameModal);
+                init();
+            };
+            
+            document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('multiplayerBtn').click();
+                }
+            });
+        }
+
+        // Web3 Wallet Connection Functions
+        async function connectWallet() {
+            try {
+                console.log('🔗 Connecting to Monad testnet wallet...');
+                
+                if (typeof window.ethereum !== 'undefined') {
+                    // MetaMask is available
+                    web3 = new Web3(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({ 
+                        method: 'eth_requestAccounts' 
+                    });
+                    
+                    if (accounts.length > 0) {
+                        walletAddress = accounts[0];
+                        console.log('✅ Wallet connected:', walletAddress);
+                        
+                        // Switch to Monad testnet if needed
+                        await switchToMonadNetwork();
+                        
+                        // Update balances
+                        await updateBalances();
+                        
+                        isWalletConnected = true;
+                        showNotification(`🪙 Wallet connected: ${walletAddress.substring(0,6)}...${walletAddress.substring(38)}`);
+                        
+                        return true;
+                    }
+                } else {
+                    // Fallback to WalletConnect
+                    console.log('🔗 Using WalletConnect...');
+                    showNotification('📱 Please scan QR code with your mobile wallet');
+                    
+                    const provider = new WalletConnectProvider({
+                        rpc: {
+                            [window.env.MONAD_CHAIN_ID]: window.env.MONAD_RPC_URL
+                        },
+                        chainId: window.env.MONAD_CHAIN_ID,
+                        bridge: 'https://bridge.walletconnect.org',
+                        qrcode: true,
+                        projectId: window.env.WALLET_CONNECT_PROJECT_ID
+                    });
+                    
+                    await provider.enable();
+                    web3 = new Web3(provider);
+                    
+                    const accounts = await web3.eth.getAccounts();
+                    if (accounts.length > 0) {
+                        walletAddress = accounts[0];
+                        isWalletConnected = true;
+                        showNotification(`📱 Mobile wallet connected: ${walletAddress.substring(0,6)}...`);
+                        return true;
+                    }
+                }
+                
+                return false;
+                
+            } catch (error) {
+                console.error('❌ Wallet connection failed:', error);
+                showNotification('❌ Wallet connection failed. Please try again.');
+                return false;
+            }
+        }
+
+        async function switchToMonadNetwork() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: `0x${window.env.MONAD_CHAIN_ID.toString(16)}` }],
+                });
+                console.log('✅ Switched to Monad testnet');
+            } catch (switchError) {
+                // Network not added to MetaMask
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: `0x${window.env.MONAD_CHAIN_ID.toString(16)}`,
+                                chainName: 'Monad Testnet',
+                                nativeCurrency: {
+                                    name: 'MON',
+                                    symbol: 'MON',
+                                    decimals: 18
+                                },
+                                rpcUrls: [window.env.MONAD_RPC_URL],
+                                blockExplorerUrls: ['https://testnet.monadexplorer.com/']
+                            }]
+                        });
+                        console.log('✅ Monad testnet added to MetaMask');
+                    } catch (addError) {
+                        console.error('❌ Failed to add Monad network:', addError);
+                        throw addError;
+                    }
+                }
+            }
+        }
+
+        async function updateBalances() {
+            if (!web3 || !walletAddress) return;
+            
+            try {
+                // Get MON balance
+                const balanceWei = await web3.eth.getBalance(walletAddress);
+                walletBalance = parseFloat(web3.utils.fromWei(balanceWei, 'ether'));
+                
+                // Get TOURS token balance (simplified - would need token contract ABI)
+                // For now, set to 0 - can be implemented later with proper contract integration
+                toursBalance = 0;
+                
+                console.log(`💰 Balances - MON: ${walletBalance.toFixed(4)}, TOURS: ${toursBalance}`);
+                
+            } catch (error) {
+                console.error('❌ Failed to update balances:', error);
+            }
+        }
+
+        async function payEntryFee() {
+            if (!isWalletConnected || !web3 || !walletAddress) {
+                showNotification('❌ Please connect your wallet first');
+                return false;
+            }
+            
+            try {
+                const entryFeeWei = web3.utils.toWei(window.env.ENTRY_FEE_MON, 'ether');
+                
+                if (walletBalance < parseFloat(window.env.ENTRY_FEE_MON)) {
+                    showNotification('❌ Insufficient MON balance for entry fee');
+                    return false;
+                }
+                
+                showNotification('💳 Processing entry fee payment...');
+                
+                const tx = await web3.eth.sendTransaction({
+                    from: walletAddress,
+                    to: window.env.BANALL_CONTRACT_ADDRESS, // Game contract receives entry fees
+                    value: entryFeeWei,
+                    gas: 21000
+                });
+                
+                console.log('✅ Entry fee paid:', tx.transactionHash);
+                showNotification(`✅ Entry fee paid! TX: ${tx.transactionHash.substring(0,10)}...`);
+                
+                // Update balance after payment
+                await updateBalances();
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Entry fee payment failed:', error);
+                showNotification('❌ Entry fee payment failed. Please try again.');
+                return false;
+            }
+        }
+
         // Initialize game
         async function init() {
             try {
+                console.log('Initializing mountain warfare game...');
+                
+                // Set a timeout to force-hide loading screen after 10 seconds
+                const loadingTimeout = setTimeout(() => {
+                    console.warn('Game initialization taking too long - forcing continue...');
+                    const loadingScreen = document.getElementById('loadingScreen');
+                    if (loadingScreen && loadingScreen.style.display !== 'none') {
+                        loadingScreen.style.display = 'none';
+                        showNotification('⚠️ Initialization timeout - Continuing in simplified mode');
+                        updateGameState();
+                    }
+                }, 10000);
+                
                 // Get Telegram user info
                 if (WebApp) {
                     WebApp.ready();
@@ -337,195 +621,1025 @@
                 }
                 
                 if (!userId) {
-                    userId = 'demo_' + Math.random().toString(36).substr(2, 9);
+                    userId = 'marine_' + Math.random().toString(36).substr(2, 9);
                     myPlayerId = userId;
                 }
 
+                console.log('Marine ID assigned:', myPlayerId);
+
                 // Initialize 3D scene
-                initScene();
+                const sceneInitialized = initScene();
                 
-                // Connect to game server
-                await connectToGameServer();
+                // Connect to game server (only in multiplayer mode)
+                if (gameMode === 'multiplayer') {
+                    try {
+                        await connectToGameServer();
+                    } catch (error) {
+                        console.warn('Failed to connect to server, continuing in offline mode:', error);
+                    }
+                } else {
+                    console.log('Single player mode - skipping server connection');
+                    // Initialize game room for single player
+                    gameRoom = {
+                        room_id: 'solo_mission',
+                        is_active: false,
+                        player_count: 1,
+                        players: {},
+                        bastral_id: null
+                    };
+                }
                 
                 // Setup event listeners
                 setupEventListeners();
                 
-                // Start game loop
-                animate();
+                // Update initial game state
+                updateGameState();
                 
-                // Hide loading screen
-                document.getElementById('loadingScreen').style.display = 'none';
+                // Start game loop only if 3D scene initialized
+                if (sceneInitialized) {
+                    animate();
+                } else {
+                    console.log('Running in 2D fallback mode - skipping 3D animation loop');
+                }
+                
+                // Clear the timeout and hide loading screen
+                clearTimeout(loadingTimeout);
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                    console.log('Loading screen hidden - mountain base ready!');
+                }
                 
             } catch (error) {
-                console.error('Failed to initialize game:', error);
-                showNotification('Failed to load game. Please refresh.');
+                console.error('Failed to initialize mountain warfare game:', error);
+                
+                // Force hide loading screen on error
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                
+                showNotification('⚠️ Deployment error - Operating in emergency mode');
+                updateGameState();
             }
         }
 
         function initScene() {
-            // Create scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+            try {
+                console.log('Initializing mountain warfare scene...');
+                
+                // Ensure THREE.js is loaded
+                if (typeof THREE === 'undefined') {
+                    console.error('THREE.js not loaded!');
+                    return false;
+                }
+                
+                // Create scene with darker, more atmospheric lighting
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x4682b4); // Steel blue winter sky
 
-            // Create camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 10, 20);
+                // Create camera
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 15, 25);
+                camera.lookAt(0, 5, -10);
 
-            // Create renderer
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                // Create renderer with enhanced shadows
+                const canvas = document.getElementById('gameCanvas');
+                if (!canvas) {
+                    console.error('Game canvas not found!');
+                    return false;
+                }
+                
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-            // Add lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
+                // Enhanced lighting for military atmosphere
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(50, 50, 0);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
+                // Main directional light (harsh winter sun)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(30, 50, 20);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                scene.add(directionalLight);
 
-            // Create climbing wall environment
-            createClimbingWall();
+                // Cold blue rim light for atmosphere
+                const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
+                rimLight.position.set(-20, 30, -10);
+                scene.add(rimLight);
+
+                // Create mountain warfare environment (simplified for reliability)
+                createSimplifiedMountainEnvironment();
+
+                // Setup basic camera controls
+                if (typeof THREE.OrbitControls !== 'undefined') {
+                    try {
+                        controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        controls.enableDamping = true;
+                        controls.dampingFactor = 0.05;
+                        controls.maxPolarAngle = Math.PI / 2;
+                        controls.minDistance = 5;
+                        controls.maxDistance = 50;
+                    } catch (e) {
+                        console.warn('OrbitControls failed to initialize:', e);
+                        controls = null;
+                    }
+                } else {
+                    console.warn('OrbitControls not available');
+                    controls = null;
+                }
+                
+                console.log('Mountain warfare scene initialized successfully!');
+                return true;
+                
+            } catch (error) {
+                console.error('Failed to initialize 3D scene:', error);
+                return false;
+            }
+        }
+
+        function createSimplifiedMountainEnvironment() {
+            console.log('Creating simplified mountain environment...');
             
-            // Create ground
-            const groundGeometry = new THREE.PlaneGeometry(50, 50);
-            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            // SNOWY GROUND
+            const groundGeometry = new THREE.PlaneGeometry(80, 80);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
 
-            // Setup camera controls (OrbitControls might not be available)
-            if (typeof THREE.OrbitControls !== 'undefined') {
-                controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.05;
-            } else {
-                console.warn('OrbitControls not available, using basic camera setup');
-            }
-        }
-
-        function createClimbingWall() {
-            // Main climbing wall
-            const wallGeometry = new THREE.BoxGeometry(30, 20, 2);
-            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            // ICY CLIMBING WALL
+            const wallGeometry = new THREE.BoxGeometry(40, 25, 3);
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb });
             const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-            wall.position.set(0, 10, -10);
+            wall.position.set(0, 12.5, -15);
             wall.castShadow = true;
             wall.receiveShadow = true;
             scene.add(wall);
 
-            // Add climbing holds
-            for (let i = 0; i < 20; i++) {
-                const holdGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-                const colors = [0xff6b6b, 0x4ecdc4, 0xffd93d, 0x6bcf7f];
-                const holdMaterial = new THREE.MeshLambertMaterial({ 
-                    color: colors[Math.floor(Math.random() * colors.length)] 
-                });
-                const hold = new THREE.Mesh(holdGeometry, holdMaterial);
-                
-                hold.position.set(
-                    (Math.random() - 0.5) * 25,
-                    Math.random() * 15 + 2,
-                    -8.5
+            // Add some basic military equipment
+            for (let i = 0; i < 8; i++) {
+                const equipGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.5);
+                const equipMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f });
+                const equipment = new THREE.Mesh(equipGeometry, equipMaterial);
+                equipment.position.set(
+                    (Math.random() - 0.5) * 60,
+                    0.15,
+                    Math.random() * 15
                 );
-                hold.castShadow = true;
-                scene.add(hold);
+                equipment.castShadow = true;
+                scene.add(equipment);
             }
 
-            // Add safety mats
-            for (let i = -3; i <= 3; i++) {
-                const matGeometry = new THREE.BoxGeometry(4, 0.5, 4);
-                const matMaterial = new THREE.MeshLambertMaterial({ color: 0x0066cc });
-                const mat = new THREE.Mesh(matGeometry, matMaterial);
-                mat.position.set(i * 5, 0.25, -5);
-                mat.castShadow = true;
-                scene.add(mat);
+            console.log('Simplified mountain environment created successfully!');
+        }
+
+        function createFallbackInterface() {
+            console.log('Creating fallback 2D interface...');
+            
+            const canvas = document.getElementById('gameCanvas');
+            canvas.style.background = 'linear-gradient(135deg, #2c3e50 0%, #4a6741 100%)';
+            
+            // Add fallback message
+            const fallbackDiv = document.createElement('div');
+            fallbackDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                text-align: center;
+                font-family: 'Courier New', monospace;
+                z-index: 10;
+            `;
+            fallbackDiv.innerHTML = `
+                <h2 style="color: #ffd700;">🪖 TACTICAL OPERATIONS CENTER</h2>
+                <p>3D environment unavailable - Operating in 2D mode</p>
+                <p>Marine deployment and combat systems active</p>
+                <div style="margin-top: 20px;">
+                    <button onclick="forceContinue()" style="
+                        padding: 15px 30px; 
+                        background: #8b0000; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 5px; 
+                        cursor: pointer;
+                        font-family: 'Courier New', monospace;
+                    ">CONTINUE OPERATION</button>
+                </div>
+            `;
+            
+            document.getElementById('gameContainer').appendChild(fallbackDiv);
+            
+            // Global function for the button
+            window.forceContinue = function() {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                fallbackDiv.style.display = 'none';
+                
+                // Enable fallback game mode
+                updateGameState();
+                
+                showNotification('🪖 2D Tactical Mode Active - Marine ready for deployment!');
+            };
+        }
+
+        // Equipment Selection System
+        function showEquipmentSelection() {
+            const equipModal = document.createElement('div');
+            equipModal.id = 'equipmentModal';
+            equipModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 3000;
+                color: white;
+                font-family: 'Courier New', monospace;
+            `;
+            
+            equipModal.innerHTML = `
+                <div style="text-align: center; background: rgba(85,107,47,0.2); padding: 40px; border-radius: 10px; border: 2px solid #556b2f;">
+                    <h2 style="color: #ffd700; margin-bottom: 30px; font-size: 28px;">⚔️ SELECT YOUR GEAR ⚔️</h2>
+                    <p style="margin-bottom: 30px; font-size: 16px;">Choose your mountain warfare equipment:</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+                        <div class="equipment-option" data-equipment="climbing_axe" style="
+                            padding: 20px; 
+                            border: 2px solid #696969; 
+                            border-radius: 10px; 
+                            cursor: pointer; 
+                            background: rgba(105,105,105,0.2);
+                            transition: all 0.3s ease;
+                        ">
+                            <h3 style="color: #87ceeb;">🪓 Ice Climbing Axe</h3>
+                            <p>Essential for scaling icy surfaces<br>+50% climbing speed</p>
+                        </div>
+                        
+                        <div class="equipment-option" data-equipment="grappling_hook" style="
+                            padding: 20px; 
+                            border: 2px solid #696969; 
+                            border-radius: 10px; 
+                            cursor: pointer; 
+                            background: rgba(105,105,105,0.2);
+                            transition: all 0.3s ease;
+                        ">
+                            <h3 style="color: #87ceeb;">🪝 Tactical Grappling Hook</h3>
+                            <p>Quick vertical movement<br>Can reach high positions instantly</p>
+                        </div>
+                        
+                        <div class="equipment-option" data-equipment="crampons" style="
+                            padding: 20px; 
+                            border: 2px solid #696969; 
+                            border-radius: 10px; 
+                            cursor: pointer; 
+                            background: rgba(105,105,105,0.2);
+                            transition: all 0.3s ease;
+                        ">
+                            <h3 style="color: #87ceeb;">🦶 Military Crampons</h3>
+                            <p>Superior ice grip<br>+30% movement speed on ice</p>
+                        </div>
+                        
+                        <div class="equipment-option" data-equipment="thermal_gear" style="
+                            padding: 20px; 
+                            border: 2px solid #696969; 
+                            border-radius: 10px; 
+                            cursor: pointer; 
+                            background: rgba(105,105,105,0.2);
+                            transition: all 0.3s ease;
+                        ">
+                            <h3 style="color: #87ceeb;">🧥 Arctic Combat Suit</h3>
+                            <p>Protection from cold damage<br>Immunity to weather effects</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Wallet Connection Section -->
+                    <div id="walletSection" style="margin: 30px 0; padding: 20px; border: 2px solid #ffd700; border-radius: 10px; background: rgba(255,215,0,0.1);">
+                        <h3 style="color: #ffd700; margin-bottom: 15px;">🪙 MONAD TESTNET WALLET</h3>
+                        <div id="walletStatus" style="margin-bottom: 15px; color: #ccc;">
+                            <p>Connect wallet to pay entry fee (${window.env.ENTRY_FEE_MON} MON)</p>
+                            <p>Last marine standing wins double the pot!</p>
+                        </div>
+                        <button id="connectWalletBtn" style="
+                            padding: 12px 25px; 
+                            background: linear-gradient(45deg, #ffd700, #ffed4e); 
+                            color: #000; 
+                            border: none; 
+                            border-radius: 20px; 
+                            font-size: 14px; 
+                            font-weight: bold;
+                            cursor: pointer;
+                            font-family: 'Courier New', monospace;
+                            text-transform: uppercase;
+                            letter-spacing: 1px;
+                        ">🔗 CONNECT WALLET</button>
+                    </div>
+                    
+                    <button id="startMissionBtn" style="
+                        padding: 15px 40px; 
+                        background: #8b0000; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 25px; 
+                        font-size: 18px; 
+                        font-weight: bold;
+                        cursor: pointer;
+                        font-family: 'Courier New', monospace;
+                        text-transform: uppercase;
+                        letter-spacing: 2px;
+                    ">🎯 START MISSION</button>
+                    
+                    <div style="margin-top: 20px; font-size: 14px; color: #ccc;">
+                        Selected Equipment: <span id="selectedEquipment" style="color: #ffd700;">None</span>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(equipModal);
+            
+            let selectedEquipment = null;
+            
+            // Equipment selection handling
+            document.querySelectorAll('.equipment-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    // Reset all options
+                    document.querySelectorAll('.equipment-option').forEach(opt => {
+                        opt.style.border = '2px solid #696969';
+                        opt.style.background = 'rgba(105,105,105,0.2)';
+                    });
+                    
+                    // Highlight selected
+                    option.style.border = '2px solid #ffd700';
+                    option.style.background = 'rgba(255,215,0,0.2)';
+                    
+                    selectedEquipment = option.dataset.equipment;
+                    document.getElementById('selectedEquipment').textContent = option.querySelector('h3').textContent;
+                });
+                
+                // Hover effects
+                option.addEventListener('mouseenter', () => {
+                    if (!option.style.border.includes('ffd700')) {
+                        option.style.border = '2px solid #87ceeb';
+                        option.style.background = 'rgba(135,206,235,0.2)';
+                    }
+                });
+                
+                option.addEventListener('mouseleave', () => {
+                    if (!option.style.border.includes('ffd700')) {
+                        option.style.border = '2px solid #696969';
+                        option.style.background = 'rgba(105,105,105,0.2)';
+                    }
+                });
+            });
+            
+            // Wallet connection handler
+            document.getElementById('connectWalletBtn').onclick = async () => {
+                const connectBtn = document.getElementById('connectWalletBtn');
+                const walletStatus = document.getElementById('walletStatus');
+                
+                connectBtn.textContent = '🔄 CONNECTING...';
+                connectBtn.disabled = true;
+                
+                const connected = await connectWallet();
+                
+                if (connected) {
+                    connectBtn.textContent = '✅ WALLET CONNECTED';
+                    connectBtn.style.background = 'linear-gradient(45deg, #32cd32, #90ee90)';
+                    walletStatus.innerHTML = `
+                        <p style="color: #32cd32;">✅ Connected: ${walletAddress.substring(0,6)}...${walletAddress.substring(38)}</p>
+                        <p style="color: #ffd700;">💰 Balance: ${walletBalance.toFixed(4)} MON</p>
+                        <p style="color: #87ceeb;">Ready for combat deployment!</p>
+                    `;
+                } else {
+                    connectBtn.textContent = '❌ CONNECTION FAILED';
+                    connectBtn.style.background = 'linear-gradient(45deg, #dc143c, #ff6b6b)';
+                    connectBtn.disabled = false;
+                    setTimeout(() => {
+                        connectBtn.textContent = '🔗 CONNECT WALLET';
+                        connectBtn.style.background = 'linear-gradient(45deg, #ffd700, #ffed4e)';
+                    }, 3000);
+                }
+            };
+            
+            document.getElementById('startMissionBtn').onclick = async () => {
+                // Check if wallet is connected
+                if (!isWalletConnected) {
+                    showNotification('❌ Please connect your wallet first!');
+                    return;
+                }
+                
+                // Check equipment selection
+                if (!selectedEquipment) {
+                    showNotification('⚠️ Please select your tactical equipment!');
+                    return;
+                }
+                
+                // Pay entry fee
+                const entryBtn = document.getElementById('startMissionBtn');
+                entryBtn.textContent = '💳 PAYING ENTRY FEE...';
+                entryBtn.disabled = true;
+                
+                const paymentSuccess = await payEntryFee();
+                
+                if (paymentSuccess) {
+                    entryBtn.textContent = '🎯 DEPLOYING TO MOUNTAIN...';
+                    window.selectedEquipment = selectedEquipment;
+                    document.body.removeChild(equipModal);
+                    showUsernameInput();
+                } else {
+                    entryBtn.textContent = '🎯 START MISSION';
+                    entryBtn.disabled = false;
+                }
+            };
+        }
+
+        function createMountainEnvironment() {
+            // MASSIVE MT EVEREST-STYLE TERRAIN for 100+ players
+            const mountainGeometry = new THREE.ConeGeometry(80, 60, 12); // Much larger mountain
+            const mountainMaterial = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 }); // Snow white
+            const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+            mountain.position.set(0, 30, -40); // Moved back further
+            mountain.castShadow = true;
+            mountain.receiveShadow = true;
+            scene.add(mountain);
+
+            // MULTIPLE ICY CLIMBING WALLS - Combat areas spread across the mountain
+            for (let i = 0; i < 5; i++) {
+                const wallGeometry = new THREE.BoxGeometry(30, 20, 2);
+                const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x87ceeb }); // Icy blue
+                const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                const angle = (i / 5) * Math.PI * 2;
+                wall.position.set(
+                    Math.cos(angle) * 25, // Circular arrangement
+                    10 + Math.random() * 8,
+                    Math.sin(angle) * 25 - 20
+                );
+                wall.rotation.y = angle;
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                scene.add(wall);
+            }
+
+            // Add ice patches and rocky outcrops across the larger terrain
+            for (let i = 0; i < 80; i++) { // More rocks for larger environment
+                const rockGeometry = new THREE.BoxGeometry(
+                    Math.random() * 3 + 0.5, // Slightly larger rocks
+                    Math.random() * 2 + 0.3, 
+                    Math.random() * 1.5 + 0.2
+                );
+                const isIce = Math.random() > 0.6;
+                const rockMaterial = new THREE.MeshLambertMaterial({ 
+                    color: isIce ? 0xb0e0e6 : 0x696969 // Ice blue or dark gray
+                });
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                
+                rock.position.set(
+                    (Math.random() - 0.5) * 120, // Much wider spread for 100+ players
+                    Math.random() * 25 + 2,
+                    (Math.random() - 0.5) * 80 // Deeper terrain
+                );
+                rock.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                rock.castShadow = true;
+                rock.receiveShadow = true;
+                scene.add(rock);
+            }
+
+            // MASSIVE SNOWY GROUND for 100+ players
+            const groundGeometry = new THREE.PlaneGeometry(200, 200); // Much larger ground
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Pure white snow
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add more trenches and foxholes spread across the terrain
+            for (let i = 0; i < 15; i++) { // More trenches for larger area
+                const trenchGeometry = new THREE.BoxGeometry(8, 0.5, 2);
+                const trenchMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown dirt
+                const trench = new THREE.Mesh(trenchGeometry, trenchMaterial);
+                trench.position.set(
+                    (Math.random() - 0.5) * 180, // Spread across larger area
+                    -0.2,
+                    (Math.random() - 0.5) * 180
+                );
+                trench.receiveShadow = true;
+                scene.add(trench);
+            }
+
+            // MILITARY EQUIPMENT scattered across the massive terrain
+            for (let i = 0; i < 50; i++) { // More equipment for larger environment
+                const equipGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.5);
+                const equipMaterial = new THREE.MeshLambertMaterial({ color: 0x556b2f }); // Military green
+                const equipment = new THREE.Mesh(equipGeometry, equipMaterial);
+                equipment.position.set(
+                    (Math.random() - 0.5) * 160, // Spread across the larger terrain
+                    0.15,
+                    (Math.random() - 0.5) * 160
+                );
+                equipment.castShadow = true;
+                scene.add(equipment);
+            }
+
+            // ENHANCED WEATHER EFFECTS - Snow particles for massive Mt Everest environment  
+            const snowGeometry = new THREE.BufferGeometry();
+            const snowCount = 2000; // More snow for larger environment
+            const positions = new Float32Array(snowCount * 3);
+
+            for (let i = 0; i < snowCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 400;     // x - Much wider snow coverage
+                positions[i + 1] = Math.random() * 150 + 10;    // y - Higher snow ceiling  
+                positions[i + 2] = (Math.random() - 0.5) * 400; // z - Deeper snow coverage
+            }
+
+            snowGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const snowMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+            const snow = new THREE.Points(snowGeometry, snowMaterial);
+            scene.add(snow);
+
+            // Animate falling snow
+            setInterval(() => {
+                const positions = snow.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] -= 0.1; // Fall down
+                    if (positions[i] < -10) {
+                        positions[i] = 150; // Reset higher for bigger environment
+                    }
+                }
+                snow.geometry.attributes.position.needsUpdate = true;
+            }, 50);
+        }
+
+        function createMarineCombatVeteran(playerId, position, isMe = false, isBot = false) {
+            console.log(`🪖 CREATING MARINE: ${playerId}, isMe: ${isMe}, isBot: ${isBot}, position:`, position);
+            
+            if (!THREE || !scene) {
+                console.error('❌ Cannot create marine - THREE.js or scene not available!');
+                return null;
+            }
+            
+            try {
+                const group = new THREE.Group();
+                group.name = `marine_${playerId}`;
+                group.userData = { playerId: playerId, isMe: isMe, isBot: isBot };
+                
+                // Determine color scheme
+                let marineColor = 0x556b2f; // Default olive
+                if (isMe) {
+                    marineColor = 0x8b0000; // Dark red for my marine
+                } else if (playerId === bastralId) {
+                    marineColor = 0xffd700; // Gold for target
+                } else if (isBot) {
+                    marineColor = 0x2f4f4f; // Dark gray for enemy bots
+                }
+                
+                const material = new THREE.MeshLambertMaterial({ color: marineColor });
+                
+                // BODY - Main torso (larger and more visible)
+                const bodyGeometry = new THREE.BoxGeometry(0.8, 2.0, 0.6);
+                const body = new THREE.Mesh(bodyGeometry, material);
+                body.position.y = 1.0;
+                body.castShadow = true;
+                group.add(body);
+                console.log('✅ Marine body created');
+
+                // HEAD - Military helmet
+                const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+                const head = new THREE.Mesh(headGeometry, material);
+                head.position.y = 2.3;
+                head.castShadow = true;
+                group.add(head);
+                console.log('✅ Marine head created');
+
+                // ARMS - Left and right
+                const armGeometry = new THREE.BoxGeometry(0.3, 1.2, 0.3);
+                
+                const leftArm = new THREE.Mesh(armGeometry, material);
+                leftArm.position.set(-0.7, 1.0, 0);
+                leftArm.castShadow = true;
+                group.add(leftArm);
+                
+                const rightArm = new THREE.Mesh(armGeometry, material);
+                rightArm.position.set(0.7, 1.0, 0);
+                rightArm.castShadow = true;
+                group.add(rightArm);
+                console.log('✅ Marine arms created');
+
+                // LEGS - Left and right
+                const legGeometry = new THREE.BoxGeometry(0.3, 1.5, 0.3);
+                
+                const leftLeg = new THREE.Mesh(legGeometry, material);
+                leftLeg.position.set(-0.3, -0.25, 0);
+                leftLeg.castShadow = true;
+                group.add(leftLeg);
+                
+                const rightLeg = new THREE.Mesh(legGeometry, material);
+                rightLeg.position.set(0.3, -0.25, 0);
+                rightLeg.castShadow = true;
+                group.add(rightLeg);
+                console.log('✅ Marine legs created');
+
+                // WEAPON - Rifle
+                const weaponGeometry = new THREE.BoxGeometry(0.1, 0.1, 1.2);
+                const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2c2c });
+                const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+                weapon.position.set(0.6, 1.2, 0.5);
+                weapon.rotation.x = -Math.PI / 8;
+                weapon.castShadow = true;
+                group.add(weapon);
+                console.log('✅ Marine weapon created');
+
+                // Position the marine group
+                group.position.set(position.x, position.y + 1.0, position.z);
+                group.rotation.y = position.rotation_y || 0;
+                
+                // Make sure the marine is visible and large enough
+                group.scale.set(1.2, 1.2, 1.2); // Make 20% larger
+                
+                console.log(`🎯 MARINE POSITIONED AT: (${position.x}, ${position.y + 1.0}, ${position.z})`);
+
+                // Add text label above marine
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                
+                // Background
+                context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Text
+                const labelText = playerId === bastralId ? `🎯 ${playerId}` : 
+                                 isBot ? `🤖 ${playerId}` : 
+                                 isMe ? `🪖 ${username || playerId}` : `🪖 ${playerId}`;
+                const textColor = playerId === bastralId ? '#ffd700' : 
+                                 isBot ? '#ff4500' : 
+                                 isMe ? '#ff0000' : '#ffffff';
+                
+                context.fillStyle = textColor;
+                context.font = 'bold 20px Arial';
+                context.textAlign = 'center';
+                context.fillText(labelText, 128, 40);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+                const label = new THREE.Sprite(labelMaterial);
+                label.position.y = 3.5;
+                label.scale.set(3, 0.75, 1);
+                group.add(label);
+                console.log('✅ Marine label created');
+
+                // Store references for animations
+                group.userData.bodyParts = { body, head, leftArm, rightArm, leftLeg, rightLeg, weapon };
+                group.userData.label = label;
+
+                console.log(`🚁 MARINE ${playerId} CREATED SUCCESSFULLY - READY FOR DEPLOYMENT!`);
+                return group;
+                
+            } catch (error) {
+                console.error(`💥 FAILED TO CREATE MARINE ${playerId}:`, error);
+                return null;
             }
         }
 
-        function createStickFigure(playerId, position, isMe = false) {
-            const group = new THREE.Group();
-            
-            // Body (main torso)
-            const bodyGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2);
-            const bodyMaterial = new THREE.MeshLambertMaterial({ 
-                color: isMe ? 0xff6b6b : (playerId === bastralId ? 0xffd93d : 0xffffff) 
-            });
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 1;
-            body.castShadow = true;
-            group.add(body);
-
-            // Head
-            const headGeometry = new THREE.SphereGeometry(0.3);
-            const head = new THREE.Mesh(headGeometry, bodyMaterial);
-            head.position.y = 2.5;
-            head.castShadow = true;
-            group.add(head);
-
-            // Arms
-            const armGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
-            
-            const leftArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            leftArm.position.set(-0.7, 1.5, 0);
-            leftArm.rotation.z = Math.PI / 6;
-            leftArm.castShadow = true;
-            group.add(leftArm);
-
-            const rightArm = new THREE.Mesh(armGeometry, bodyMaterial);
-            rightArm.position.set(0.7, 1.5, 0);
-            rightArm.rotation.z = -Math.PI / 6;
-            rightArm.castShadow = true;
-            group.add(rightArm);
-
-            // Legs
-            const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
-            
-            const leftLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            leftLeg.position.set(-0.3, -0.25, 0);
-            leftLeg.castShadow = true;
-            group.add(leftLeg);
-
-            const rightLeg = new THREE.Mesh(legGeometry, bodyMaterial);
-            rightLeg.position.set(0.3, -0.25, 0);
-            rightLeg.castShadow = true;
-            group.add(rightLeg);
-
-            // Position the figure
-            group.position.set(position.x, position.y, position.z);
-            group.rotation.y = position.rotation_y;
-
-            // Add name label
+        function createMilitaryLabel(text, color = '#ffffff') {
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 64;
-            context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            // Military-style background
+            context.fillStyle = 'rgba(0, 0, 0, 0.9)';
             context.fillRect(0, 0, canvas.width, canvas.height);
-            context.fillStyle = 'white';
-            context.font = '24px Arial';
+            
+            // Military border
+            context.strokeStyle = color;
+            context.lineWidth = 6;
+            context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+            
+            // Rank insignia background
+            context.fillStyle = 'rgba(85, 107, 47, 0.8)'; // Olive drab
+            context.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+            
+            // Text
+            context.fillStyle = color;
+            context.font = 'bold 42px Arial';
             context.textAlign = 'center';
-            context.fillText(playerId === bastralId ? `@${playerId}` : playerId, 128, 40);
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
 
             const texture = new THREE.CanvasTexture(canvas);
             const labelMaterial = new THREE.SpriteMaterial({ map: texture });
-            const label = new THREE.Sprite(labelMaterial);
-            label.position.y = 3.5;
-            label.scale.set(2, 0.5, 1);
-            group.add(label);
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(4, 1, 1);
+            
+            return sprite;
+        }
 
-            return group;
+        function createPlayerLabel(text, color = '#ffffff') {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            // Background
+            context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Border
+            context.strokeStyle = color;
+            context.lineWidth = 4;
+            context.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+            
+            // Text
+            context.fillStyle = color;
+            context.font = 'bold 48px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(4, 1, 1);
+            
+            return sprite;
+        }
+
+        function updatePlayerLabel(playerId, text, isBastral = false) {
+            const player = players[playerId];
+            if (!player || !player.figure) return;
+            
+            const group = player.figure;
+            const oldLabel = group.userData.label;
+            if (oldLabel) {
+                group.remove(oldLabel);
+            }
+            
+            const color = isBastral ? '#ffd93d' : '#ffffff';
+            const newLabel = createPlayerLabel(text, color);
+            newLabel.position.y = 4.2;
+            group.add(newLabel);
+            group.userData.label = newLabel;
+        }
+
+        // Bot Management System
+        function spawnBots(count = 3) {
+            console.log(`Deploying ${count} enemy marines for solo mission`);
+            
+            const botCallsigns = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GHOST', 'HAWK'];
+            
+            for (let i = 0; i < count; i++) {
+                const botId = botCallsigns[i] || `BOT_${i}`;
+                const spawnPosition = {
+                    x: (Math.random() - 0.5) * 10, // Reduced from 35 to 10 for camera visibility
+                    y: Math.random() * 4 + 1, // Start low on mountain
+                    z: -10 + Math.random() * 4, // Changed from -12+6 to -10+4 for better camera view
+                    rotation_y: Math.random() * Math.PI * 2
+                };
+                
+                const botFigure = createMarineCombatVeteran(botId, spawnPosition, false, true);
+                bots[botId] = {
+                    id: botId,
+                    figure: botFigure,
+                    position: spawnPosition,
+                    lastMove: Date.now(),
+                    moveDirection: { x: 0, y: 0, z: 0 },
+                    isBanned: false,
+                    isAggressive: Math.random() > 0.5
+                };
+                
+                scene.add(botFigure);
+            }
+            
+            // Select a random target from all marines
+            const allMarines = [myPlayerId, ...Object.keys(bots)];
+            bastralId = allMarines[Math.floor(Math.random() * allMarines.length)];
+            
+            if (bastralId === myPlayerId) {
+                updatePlayerColor(myPlayerId, 0xffd700);
+                updatePlayerLabel(myPlayerId, `🎯 TARGET: ${username}`, true);
+                showNotification(`⚠️ You are the TARGET! Enemy marines will hunt you down!`);
+            } else {
+                updateBotColor(bastralId, 0xffd700);
+                updateBotLabel(bastralId, `🎯 TARGET: ${bastralId}`, true);
+                showNotification(`🎯 TARGET ACQUIRED: ${bastralId}! Get close and execute the elimination!`);
+            }
+            
+            updateBastralDisplay();
+            
+            // Start bot AI
+            setInterval(updateBotsAI, 100);
+        }
+
+        function updateBotsAI() {
+            if (!isGameActive && gameMode === 'singleplayer') return;
+            
+            const currentTime = Date.now();
+            
+            Object.keys(bots).forEach(botId => {
+                const bot = bots[botId];
+                if (!bot || bot.isBanned) return;
+                
+                // Bot AI behavior
+                if (currentTime - bot.lastMove > 200) { // Move every 200ms
+                    
+                    // If this bot is the bastral, try to avoid player
+                    if (botId === bastralId && myPlayer) {
+                        const distanceToPlayer = bot.figure.position.distanceTo(myPlayer.position);
+                        
+                        if (distanceToPlayer < 5) {
+                            // Run away from player
+                            const escapeVector = bot.figure.position.clone().sub(myPlayer.position).normalize();
+                            bot.figure.position.add(escapeVector.multiplyScalar(0.1));
+                        } else {
+                            // Random movement
+                            bot.figure.position.x += (Math.random() - 0.5) * 0.2;
+                            bot.figure.position.z += (Math.random() - 0.5) * 0.2;
+                            bot.figure.position.y += (Math.random() - 0.5) * 0.1;
+                        }
+                    } 
+                    // If player is bastral, bots try to get close
+                    else if (bastralId === myPlayerId && myPlayer) {
+                        const distanceToPlayer = bot.figure.position.distanceTo(myPlayer.position);
+                        
+                        if (distanceToPlayer > 3) {
+                            // Move toward player
+                            const chaseVector = myPlayer.position.clone().sub(bot.figure.position).normalize();
+                            bot.figure.position.add(chaseVector.multiplyScalar(0.08));
+                        } else if (Math.random() > 0.98) {
+                            // Try to ban the player
+                            setTimeout(() => {
+                                handleBotBanAttempt(botId);
+                            }, Math.random() * 1000);
+                        }
+                    }
+                    // If another bot is bastral, move toward it
+                    else if (bastralId && bots[bastralId] && botId !== bastralId) {
+                        const distanceToBastral = bot.figure.position.distanceTo(bots[bastralId].figure.position);
+                        
+                        if (distanceToBastral > 3) {
+                            const chaseVector = bots[bastralId].figure.position.clone().sub(bot.figure.position).normalize();
+                            bot.figure.position.add(chaseVector.multiplyScalar(0.06));
+                        } else if (Math.random() > 0.99) {
+                            handleBotBanAttempt(botId);
+                        }
+                    }
+                    
+                    // Keep bots in bounds
+                    bot.figure.position.x = Math.max(-20, Math.min(20, bot.figure.position.x));
+                    bot.figure.position.y = Math.max(0.8, Math.min(15, bot.figure.position.y));
+                    bot.figure.position.z = Math.max(-15, Math.min(5, bot.figure.position.z));
+                    
+                    // Animate bot movement
+                    animateMovement(bot.figure, 'walking');
+                    
+                    bot.lastMove = currentTime;
+                }
+            });
+        }
+
+        function handleBotBanAttempt(botId) {
+            if (gameMode !== 'singleplayer' || !bastralId) return;
+            
+            const bot = bots[botId];
+            if (!bot || bot.isBanned) return;
+            
+            // Check if bot is close enough to bastral
+            let target = null;
+            let distance = Infinity;
+            
+            if (bastralId === myPlayerId && myPlayer) {
+                target = myPlayer;
+                distance = bot.figure.position.distanceTo(myPlayer.position);
+            } else if (bots[bastralId]) {
+                target = bots[bastralId].figure;
+                distance = bot.figure.position.distanceTo(bots[bastralId].figure.position);
+            }
+            
+            if (distance <= 3) {
+                // Successful ban!
+                showNotification(`🤖 ${botId} banned @${bastralId}!`);
+                
+                if (bastralId === myPlayerId) {
+                    // Player was banned - game over
+                    showNotification(`💀 You were banned by ${botId}! Game Over!`);
+                    endSinglePlayerGame(false);
+                } else if (bots[bastralId]) {
+                    // Ban the bastral bot
+                    bots[bastralId].isBanned = true;
+                    scene.remove(bots[bastralId].figure);
+                    delete bots[bastralId];
+                    
+                    // Select new bastral
+                    selectNewBastral();
+                }
+                
+                // Animate kick
+                animateMovement(bot.figure, 'kicking');
+                
+                // Add chat message
+                addChatMessage({
+                    type: 'chat_message',
+                    player_id: botId,
+                    username: botId,
+                    message: '/ban @bastral',
+                    timestamp: Date.now() / 1000
+                });
+            } else {
+                showNotification(`❌ ${botId} tried to ban but was too far away!`);
+            }
+        }
+
+        function selectNewBastral() {
+            const activePlayers = [myPlayerId, ...Object.keys(bots).filter(id => !bots[id].isBanned)];
+            
+            if (activePlayers.length <= 1) {
+                // Game over - player wins
+                showNotification(`🏆 You win! All bots have been eliminated!`);
+                endSinglePlayerGame(true);
+                return;
+            }
+            
+            // Select new bastral
+            bastralId = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+            
+            if (bastralId === myPlayerId) {
+                updatePlayerColor(myPlayerId, 0xffd93d);
+                updatePlayerLabel(myPlayerId, `👾 @${username}`, true);
+                showNotification(`🎯 You are now the @bastral!`);
+            } else {
+                updateBotColor(bastralId, 0xffd93d);
+                updateBotLabel(bastralId, `👾 @${bastralId}`, true);
+                showNotification(`🎯 @${bastralId} is the new bastral!`);
+            }
+            
+            updateBastralDisplay();
+        }
+
+        function endSinglePlayerGame(won) {
+            isGameActive = false;
+            
+            setTimeout(() => {
+                if (confirm(won ? '🏆 You won! Play again?' : '💀 You lost! Try again?')) {
+                    location.reload();
+                }
+            }, 2000);
+        }
+
+        function updateBotColor(botId, color) {
+            const bot = bots[botId];
+            if (!bot || !bot.figure) return;
+            
+            bot.figure.children.forEach(child => {
+                if (child.material && child.material.color && child.type === 'Mesh') {
+                    child.material.color.setHex(color);
+                }
+            });
+        }
+
+        function updateBotLabel(botId, text, isBastral = false) {
+            const bot = bots[botId];
+            if (!bot || !bot.figure) return;
+            
+            const group = bot.figure;
+            const oldLabel = group.userData.label;
+            if (oldLabel) {
+                group.remove(oldLabel);
+            }
+            
+            const color = isBastral ? '#ffd93d' : '#6bcf7f';
+            const newLabel = createPlayerLabel(text, color);
+            newLabel.position.y = 3.8;
+            group.add(newLabel);
+            group.userData.label = newLabel;
         }
 
         async function connectToGameServer() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws/${myPlayerId}`;
+            const backendPort = '8080'; // Backend is running on port 8080
+            const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}/ws/${myPlayerId}`;
             
             console.log('Connecting to WebSocket:', wsUrl);
             
@@ -533,7 +1647,7 @@
             
             websocket.onopen = () => {
                 console.log('Connected to game server');
-                showNotification('Connected to climbing wall!');
+                showNotification('🎮 Connected to climbing wall!');
             };
             
             websocket.onmessage = (event) => {
@@ -544,34 +1658,70 @@
             
             websocket.onclose = () => {
                 console.log('Disconnected from game server');
-                showNotification('Disconnected from server');
+                showNotification('❌ Disconnected from server');
             };
             
             websocket.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                showNotification('Connection error - trying demo mode');
+                showNotification('⚠️ Connection error - trying demo mode');
                 // Enable demo mode if WebSocket fails
                 setTimeout(() => {
+                    console.log('Enabling demo mode');
                     gameRoom = {
                         room_id: 'demo',
                         is_active: false,
                         player_count: 1,
-                        players: {},
+                        players: {
+                            [myPlayerId]: {
+                                id: myPlayerId,
+                                username: `Player_${myPlayerId}`,
+                                wallet_address: "",
+                                position: {
+                                    x: 0,
+                                    y: 0,
+                                    z: -2,
+                                    rotation_y: 0
+                                },
+                                is_banned: false,
+                                is_bastral: false,
+                                is_spectator: false,
+                                animation_state: "idle"
+                            }
+                        },
                         bastral_id: null
                     };
                     updateGameState();
-                }, 1000);
+                }, 2000);
             };
         }
 
         function handleServerMessage(message) {
+            console.log('Received server message:', message.type, message);
+            
             switch (message.type) {
                 case 'room_joined':
                     gameRoom = message.room_state;
+                    console.log('Joined room with state:', gameRoom);
                     updateGameState();
+                    
+                    // Create my player if not exists
+                    if (!myPlayer && gameRoom.players && gameRoom.players[myPlayerId]) {
+                        const myPlayerData = gameRoom.players[myPlayerId];
+                        myPlayer = createMarineCombatVeteran(myPlayerId, myPlayerData.position, true, false);
+                        scene.add(myPlayer);
+                        
+                        // Set camera to follow player
+                        camera.position.set(
+                            myPlayerData.position.x,
+                            myPlayerData.position.y + 8,
+                            myPlayerData.position.z + 15
+                        );
+                        console.log('My marine deployed:', myPlayerId);
+                    }
                     break;
                     
                 case 'player_joined':
+                    console.log('Player joined:', message.player.id);
                     if (message.player.id !== myPlayerId) {
                         addPlayer(message.player);
                     }
@@ -580,6 +1730,7 @@
                     break;
                     
                 case 'player_left':
+                    console.log('Player left:', message.player_id);
                     removePlayer(message.player_id);
                     gameRoom = message.room_state;
                     updateGameState();
@@ -598,7 +1749,13 @@
                     bastralId = message.bastral_id;
                     gameStartTime = message.game_start_time;
                     updateGameState();
-                    showNotification(`Game started! @${message.bastral_username} is the bastral!`);
+                    showNotification(`🎯 Game Started! @${message.bastral_username} is the bastral!`);
+                    
+                    // Update bastral appearance
+                    if (players[bastralId]) {
+                        updatePlayerColor(bastralId, 0xffd93d);
+                        updatePlayerLabel(bastralId, `@${bastralId}`, true);
+                    }
                     break;
                     
                 case 'player_banned':
@@ -608,21 +1765,45 @@
                 case 'new_bastral':
                     bastralId = message.bastral_id;
                     updateBastralDisplay();
-                    showNotification(`New @bastral: ${message.bastral_username}`);
+                    showNotification(`🎯 New @bastral: ${message.bastral_username}`);
+                    
+                    // Update all players' appearance
+                    Object.keys(players).forEach(playerId => {
+                        if (playerId === bastralId) {
+                            updatePlayerColor(playerId, 0xffd93d);
+                            updatePlayerLabel(playerId, `@${playerId}`, true);
+                        } else {
+                            updatePlayerColor(playerId, 0xffffff);
+                            updatePlayerLabel(playerId, playerId, false);
+                        }
+                    });
                     break;
                     
                 case 'game_ended':
                     isGameActive = false;
                     if (message.winner_id) {
-                        showNotification(`Game Over! Winner: ${message.winner_username}`);
+                        showNotification(`🏆 Game Over! Winner: ${message.winner_username}`);
                     } else {
-                        showNotification('Game Over! No winner.');
+                        showNotification('💀 Game Over! No winner.');
                     }
                     updateGameState();
+                    
+                    // Reset all players to normal appearance
+                    Object.keys(players).forEach(playerId => {
+                        updatePlayerColor(playerId, 0xffffff);
+                        updatePlayerLabel(playerId, playerId, false);
+                    });
                     break;
                     
                 case 'ban_failed':
-                    showNotification(message.reason);
+                    showNotification(`❌ ${message.reason}`);
+                    break;
+                    
+                case 'game_countdown':
+                    updateGameTimer(message.seconds_left);
+                    if (message.seconds_left <= 5) {
+                        showNotification(`⏰ Game starting in ${message.seconds_left}...`);
+                    }
                     break;
             }
         }
@@ -632,7 +1813,7 @@
                 removePlayer(playerData.id);
             }
             
-            const playerFigure = createStickFigure(playerData.id, playerData.position, playerData.id === myPlayerId);
+            const playerFigure = createMarineCombatVeteran(playerData.id, playerData.position, playerData.id === myPlayerId, false);
             players[playerData.id] = {
                 data: playerData,
                 figure: playerFigure
@@ -686,34 +1867,178 @@
             });
 
             // Mobile controls
-            document.getElementById('moveUp').addEventListener('touchstart', () => keys['w'] = true);
-            document.getElementById('moveUp').addEventListener('touchend', () => keys['w'] = false);
-            document.getElementById('moveDown').addEventListener('touchstart', () => keys['s'] = true);
-            document.getElementById('moveDown').addEventListener('touchend', () => keys['s'] = false);
-            document.getElementById('moveLeft').addEventListener('touchstart', () => keys['a'] = true);
-            document.getElementById('moveLeft').addEventListener('touchend', () => keys['a'] = false);
-            document.getElementById('moveRight').addEventListener('touchstart', () => keys['d'] = true);
-            document.getElementById('moveRight').addEventListener('touchend', () => keys['d'] = false);
-            document.getElementById('climb').addEventListener('touchstart', () => keys[' '] = true);
-            document.getElementById('climb').addEventListener('touchend', () => keys[' '] = false);
+            document.getElementById('moveUp').addEventListener('touchstart', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveUp').addEventListener('touchend', (e) => { e.preventDefault(); keys['w'] = false; });
+            document.getElementById('moveUp').addEventListener('mousedown', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveUp').addEventListener('mouseup', (e) => { e.preventDefault(); keys['w'] = false; });
+            
+            document.getElementById('moveDown').addEventListener('touchstart', (e) => { e.preventDefault(); keys['s'] = true; });
+            document.getElementById('moveDown').addEventListener('touchend', (e) => { e.preventDefault(); keys['s'] = false; });
+            document.getElementById('moveDown').addEventListener('mousedown', (e) => { e.preventDefault(); keys['s'] = true; });
+            document.getElementById('moveDown').addEventListener('mouseup', (e) => { e.preventDefault(); keys['s'] = false; });
+            
+            document.getElementById('moveLeft').addEventListener('touchstart', (e) => { e.preventDefault(); keys['a'] = true; });
+            document.getElementById('moveLeft').addEventListener('touchend', (e) => { e.preventDefault(); keys['a'] = false; });
+            document.getElementById('moveLeft').addEventListener('mousedown', (e) => { e.preventDefault(); keys['a'] = true; });
+            document.getElementById('moveLeft').addEventListener('mouseup', (e) => { e.preventDefault(); keys['a'] = false; });
+            
+            document.getElementById('moveRight').addEventListener('touchstart', (e) => { e.preventDefault(); keys['d'] = true; });
+            document.getElementById('moveRight').addEventListener('touchend', (e) => { e.preventDefault(); keys['d'] = false; });
+            document.getElementById('moveRight').addEventListener('mousedown', (e) => { e.preventDefault(); keys['d'] = true; });
+            document.getElementById('moveRight').addEventListener('mouseup', (e) => { e.preventDefault(); keys['d'] = false; });
+            
+            document.getElementById('climb').addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
+            document.getElementById('climb').addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+            document.getElementById('climb').addEventListener('mousedown', (e) => { e.preventDefault(); keys[' '] = true; });
+            document.getElementById('climb').addEventListener('mouseup', (e) => { e.preventDefault(); keys[' '] = false; });
+
+            document.getElementById('moveForward').addEventListener('touchstart', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveForward').addEventListener('touchend', (e) => { e.preventDefault(); keys['w'] = false; });
+            document.getElementById('moveForward').addEventListener('mousedown', (e) => { e.preventDefault(); keys['w'] = true; });
+            document.getElementById('moveForward').addEventListener('mouseup', (e) => { e.preventDefault(); keys['w'] = false; });
 
             // Chat input
             document.getElementById('chatInput').addEventListener('keypress', (event) => {
                 if (event.key === 'Enter') {
                     const message = event.target.value.trim();
-                    if (message && websocket) {
-                        websocket.send(JSON.stringify({
-                            type: 'chat_message',
-                            message: message
-                        }));
+                    if (message) {
+                        console.log('Sending tactical message:', message);
+                        
+                        // Handle elimination command
+                        if (message.toLowerCase() === '/eliminate target' || message.toLowerCase() === '/ban @bastral') {
+                            handlePlayerBanAttempt();
+                        }
+                        
+                        // Send to server (multiplayer) or handle locally (singleplayer)
+                        if (gameMode === 'multiplayer' && websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(JSON.stringify({
+                                type: 'chat_message',
+                                message: message
+                            }));
+                        } else if (gameMode === 'singleplayer') {
+                            // Add to local chat
+                            addChatMessage({
+                                type: 'chat_message',
+                                player_id: myPlayerId,
+                                username: username,
+                                message: message,
+                                timestamp: Date.now() / 1000
+                            });
+                        }
+                        
                         event.target.value = '';
                     }
                 }
             });
 
+        function handlePlayerBanAttempt() {
+            console.log('Attempting elimination. Bastral ID:', bastralId, 'My ID:', myPlayerId);
+            
+            if (!bastralId || !myPlayer) {
+                showNotification('❌ No TARGET to eliminate!');
+                return;
+            }
+            
+            if (myPlayerId === bastralId) {
+                showNotification('❌ You cannot eliminate yourself, Marine!');
+                return;
+            }
+            
+            let target = null;
+            let distance = Infinity;
+            
+            // Find the TARGET (bot or player)
+            if (gameMode === 'singleplayer' && bots[bastralId]) {
+                target = bots[bastralId].figure;
+                distance = myPlayer.position.distanceTo(target.position);
+            } else if (players[bastralId]) {
+                target = players[bastralId].figure;
+                distance = myPlayer.position.distanceTo(target.position);
+            }
+            
+            console.log(`Elimination attempt on ${bastralId}, distance: ${distance}`);
+            
+            if (distance <= 4) {
+                // Successful elimination!
+                showNotification(`💥 TARGET ELIMINATED: ${bastralId}!`);
+                
+                // Animate kick
+                animateMovement(myPlayer, 'kicking');
+                
+                if (gameMode === 'singleplayer') {
+                    // Handle single player elimination
+                    if (bots[bastralId]) {
+                        bots[bastralId].isBanned = true;
+                        scene.remove(bots[bastralId].figure);
+                        delete bots[bastralId];
+                        selectNewBastral();
+                    }
+                }
+                
+                // Visual effect at elimination location
+                createBanEffect(target.position);
+                
+            } else {
+                showNotification(`❌ Too far from TARGET! Get closer to eliminate. (Distance: ${distance.toFixed(1)}m)`);
+            }
+        }
+
+        function createBanEffect(position) {
+            // Create visual effect for successful ban
+            const geometry = new THREE.RingGeometry(0.5, 2, 16);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xff6b6b, 
+                transparent: true, 
+                opacity: 0.8 
+            });
+            const ring = new THREE.Mesh(geometry, material);
+            ring.position.copy(position);
+            ring.position.y += 0.1;
+            ring.rotation.x = -Math.PI / 2;
+            scene.add(ring);
+            
+            // Animate and remove
+            let opacity = 0.8;
+            const fadeOut = setInterval(() => {
+                opacity -= 0.05;
+                material.opacity = opacity;
+                ring.scale.multiplyScalar(1.1);
+                
+                if (opacity <= 0) {
+                    scene.remove(ring);
+                    clearInterval(fadeOut);
+                }
+            }, 50);
+        }
+
             // Start game button
             document.getElementById('startGameBtn').addEventListener('click', () => {
-                if (websocket) {
+                console.log('Start game clicked. Mode:', gameMode);
+                
+                if (gameMode === 'singleplayer') {
+                    // Start single player game
+                    console.log('Starting solo mission...');
+                    isGameActive = true;
+                    gameStartTime = Date.now() / 1000;
+                    
+                    // Ensure my marine is spawned first
+                    if (!myPlayer) {
+                        console.log('Emergency marine deployment...');
+                        const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                        myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
+                        scene.add(myPlayer);
+                        camera.position.set(0, 8, 15);
+                        camera.lookAt(0, 2, -8);
+                    }
+                    
+                    // Deploy enemy marines (bots)
+                    spawnBots(3);
+                    
+                    updateGameState();
+                    showNotification('🪖 MARINES DEPLOYED! Locate and eliminate the TARGET!');
+                    
+                } else if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    // Start multiplayer game
                     websocket.send(JSON.stringify({ type: 'start_game' }));
                 }
             });
@@ -727,49 +2052,83 @@
         }
 
         function handleMovement() {
-            if (!myPlayer) return;
+            if (!myPlayer) {
+                console.log('No marine to move - attempting to spawn...');
+                // Try to spawn marine if not exists
+                if (gameMode === 'singleplayer') {
+                    const myPosition = { x: 0, y: 1, z: -8, rotation_y: 0 };
+                    myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
+                    scene.add(myPlayer);
+                    camera.position.set(0, 8, 15);
+                    camera.lookAt(0, 2, -8);
+                    console.log('Emergency marine deployed during movement!');
+                }
+                return;
+            }
 
             let moved = false;
             let newAnimationState = 'idle';
             const moveVector = new THREE.Vector3();
 
-            if (keys['w']) {
-                moveVector.z -= moveSpeed * 0.016;
+            // Handle keyboard input with better logging
+            if (keys['w'] || keys['W']) {
+                moveVector.z -= moveSpeed * 0.016; // Forward (toward wall)
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Marine moving forward (W)');
             }
-            if (keys['s']) {
-                moveVector.z += moveSpeed * 0.016;
+            if (keys['s'] || keys['S']) {
+                moveVector.z += moveSpeed * 0.016; // Backward (away from wall)
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Marine moving backward (S)');
             }
-            if (keys['a']) {
-                moveVector.x -= moveSpeed * 0.016;
+            if (keys['a'] || keys['A']) {
+                moveVector.x -= moveSpeed * 0.016; // Left
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Marine moving left (A)');
             }
-            if (keys['d']) {
-                moveVector.x += moveSpeed * 0.016;
+            if (keys['d'] || keys['D']) {
+                moveVector.x += moveSpeed * 0.016; // Right
                 moved = true;
                 newAnimationState = 'walking';
+                console.log('Marine moving right (D)');
             }
-            if (keys[' ']) {
-                moveVector.y += climbSpeed * 0.016;
+            if (keys[' '] || keys['climb']) {
+                moveVector.y += climbSpeed * 0.016; // Climb up
                 moved = true;
                 newAnimationState = 'climbing';
+                console.log('Marine climbing up (Space)');
+            }
+            if (keys['shift'] || keys['down']) {
+                moveVector.y -= climbSpeed * 0.016; // Climb down
+                moved = true;
+                newAnimationState = 'climbing';
+                console.log('Marine climbing down (Shift)');
             }
 
-            if (moved && myPlayer) {
+            if (moved) {
+                // Apply movement to marine
                 myPlayer.position.add(moveVector);
                 
-                // Keep player in bounds
-                myPlayer.position.x = Math.max(-20, Math.min(20, myPlayer.position.x));
-                myPlayer.position.y = Math.max(0, Math.min(15, myPlayer.position.y));
-                myPlayer.position.z = Math.max(-15, Math.min(15, myPlayer.position.z));
+                // Keep marine in bounds (mountain area)
+                myPlayer.position.x = Math.max(-25, Math.min(25, myPlayer.position.x));
+                myPlayer.position.y = Math.max(1.0, Math.min(20, myPlayer.position.y)); // Keep above ground
+                myPlayer.position.z = Math.max(-18, Math.min(12, myPlayer.position.z));
 
-                // Send position update to server
-                if (websocket) {
-                    websocket.send(JSON.stringify({
+                // Update rotation to face movement direction
+                if (moveVector.x !== 0 || moveVector.z !== 0) {
+                    const angle = Math.atan2(moveVector.x, moveVector.z);
+                    myPlayer.rotation.y = angle;
+                }
+
+                // Visual feedback for movement
+                animateMovement(myPlayer, newAnimationState);
+
+                // Send position update to server (multiplayer) or handle locally (singleplayer)
+                if (gameMode === 'multiplayer' && websocket && websocket.readyState === WebSocket.OPEN) {
+                    const positionUpdate = {
                         type: 'position_update',
                         data: {
                             x: myPlayer.position.x,
@@ -778,65 +2137,188 @@
                             rotation_y: myPlayer.rotation.y,
                             animation_state: newAnimationState
                         }
-                    }));
+                    };
+                    websocket.send(JSON.stringify(positionUpdate));
+                } else if (gameMode === 'singleplayer') {
+                    // Update bots and check proximity in single player mode
+                    updateBotsAI();
                 }
+
+                // Update camera to follow marine
+                if (controls && controls.target) {
+                    controls.target.set(myPlayer.position.x, myPlayer.position.y, myPlayer.position.z);
+                }
+
+                console.log(`Marine moved to: (${myPlayer.position.x.toFixed(2)}, ${myPlayer.position.y.toFixed(2)}, ${myPlayer.position.z.toFixed(2)})`);
+            }
+        }
+
+        function animateMovement(player, animationState) {
+            if (!player || !player.userData.bodyParts) return;
+            
+            const parts = player.userData.bodyParts;
+            const time = Date.now() * 0.005;
+            
+            switch (animationState) {
+                case 'walking':
+                    // Walking animation - swing arms and legs
+                    parts.leftUpperArm.rotation.x = Math.sin(time * 4) * 0.5;
+                    parts.rightUpperArm.rotation.x = -Math.sin(time * 4) * 0.5;
+                    parts.leftUpperLeg.rotation.x = -Math.sin(time * 4) * 0.3;
+                    parts.rightUpperLeg.rotation.x = Math.sin(time * 4) * 0.3;
+                    break;
+                    
+                case 'climbing':
+                    // Climbing animation - alternating arm reach
+                    parts.leftUpperArm.rotation.x = Math.sin(time * 3) * 0.8;
+                    parts.rightUpperArm.rotation.x = -Math.sin(time * 3) * 0.8;
+                    parts.leftUpperLeg.rotation.x = Math.sin(time * 2) * 0.4;
+                    parts.rightUpperLeg.rotation.x = -Math.sin(time * 2) * 0.4;
+                    break;
+                    
+                case 'kicking':
+                    // Kick animation
+                    parts.rightUpperLeg.rotation.x = Math.PI / 3;
+                    setTimeout(() => {
+                        if (parts.rightUpperLeg) parts.rightUpperLeg.rotation.x = 0;
+                    }, 500);
+                    break;
+                    
+                default:
+                    // Idle animation - slight breathing
+                    parts.body.scale.y = 1 + Math.sin(time) * 0.02;
+                    break;
             }
         }
 
         function updateGameState() {
-            if (!gameRoom) return;
+            console.log('🔄 UPDATING GAME STATE. Mode:', gameMode, 'Scene exists:', !!scene, 'My player exists:', !!myPlayer);
 
-            // Update player count
-            document.getElementById('playerCount').textContent = `Players: ${Object.keys(gameRoom.players || {}).length}`;
-
-            // Update game status
-            const statusElement = document.getElementById('gameStatus');
-            if (gameRoom.is_active) {
-                statusElement.textContent = 'GAME ACTIVE - Find and ban @bastral!';
-                statusElement.style.color = '#ff6b6b';
-                document.getElementById('startGameBtn').style.display = 'none';
-            } else {
-                statusElement.textContent = 'Waiting for game to start...';
-                statusElement.style.color = '#6bcf7f';
-                if (Object.keys(gameRoom.players || {}).length >= 2) {
+            if (gameMode === 'singleplayer') {
+                // Single player mode
+                document.getElementById('playerCount').textContent = `Marines: ${1 + Object.keys(bots).length}`;
+                
+                const statusElement = document.getElementById('gameStatus');
+                if (isGameActive) {
+                    statusElement.textContent = 'OPERATION ACTIVE - Eliminate the TARGET!';
+                    statusElement.style.color = '#ff0000';
+                    // HIDE START BUTTON WHEN GAME IS ACTIVE
+                    document.getElementById('startGameBtn').style.display = 'none';
+                } else {
+                    statusElement.textContent = 'Solo Mission - Ready for Deployment!';
+                    statusElement.style.color = '#6bcf7f';
                     document.getElementById('startGameBtn').style.display = 'block';
                 }
-            }
-
-            // Add players to scene
-            for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
-                if (playerId === myPlayerId) {
-                    if (!myPlayer) {
-                        myPlayer = createStickFigure(playerId, playerData.position, true);
+                
+                // FORCE SPAWN MY MARINE IMMEDIATELY
+                if (!myPlayer && scene && THREE) {
+                    console.log('🚁 FORCE SPAWNING MY MARINE:', myPlayerId, username);
+                    const myPosition = { x: 0, y: 0, z: -5, rotation_y: 0 };
+                    myPlayer = createMarineCombatVeteran(myPlayerId, myPosition, true, false);
+                    
+                    if (myPlayer) {
                         scene.add(myPlayer);
+                        console.log('✅ MY MARINE ADDED TO SCENE!');
                         
-                        // Follow camera
-                        camera.position.set(
-                            playerData.position.x,
-                            playerData.position.y + 5,
-                            playerData.position.z + 10
-                        );
+                        // Set camera to follow my marine
+                        if (camera) {
+                            camera.position.set(myPlayer.position.x, myPlayer.position.y + 8, myPlayer.position.z + 15);
+                            camera.lookAt(myPlayer.position.x, myPlayer.position.y, myPlayer.position.z);
+                        }
+                        
+                        showNotification(`🪖 Marine ${username} deployed and ready!`);
+                    } else {
+                        console.error('❌ FAILED TO CREATE MY MARINE!');
+                        showNotification('⚠️ Marine deployment failed - check console');
                     }
-                } else if (!players[playerId]) {
-                    addPlayer(playerData);
+                }
+                
+            } else if (gameRoom) {
+                // Multiplayer mode
+                document.getElementById('playerCount').textContent = `Marines: ${Object.keys(gameRoom.players || {}).length}`;
+
+                const statusElement = document.getElementById('gameStatus');
+                if (gameRoom.is_active) {
+                    statusElement.textContent = 'OPERATION ACTIVE - Eliminate the TARGET!';
+                    statusElement.style.color = '#ff0000';
+                    document.getElementById('startGameBtn').style.display = 'none';
+                } else {
+                    statusElement.textContent = 'Awaiting mission deployment...';
+                    statusElement.style.color = '#6bcf7f';
+                    if (Object.keys(gameRoom.players || {}).length >= 2) {
+                        document.getElementById('startGameBtn').style.display = 'block';
+                    }
+                }
+
+                // Spawn/Update all players in the scene
+                for (const [playerId, playerData] of Object.entries(gameRoom.players || {})) {
+                    if (playerId === myPlayerId) {
+                        if (!myPlayer && scene) {
+                            console.log('🚁 Deploying my marine (multiplayer):', playerId);
+                            myPlayer = createMarineCombatVeteran(playerId, playerData.position, true, false);
+                            if (myPlayer) {
+                                scene.add(myPlayer);
+                                
+                                if (camera) {
+                                    camera.position.set(
+                                        playerData.position.x,
+                                        playerData.position.y + 8,
+                                        playerData.position.z + 15
+                                    );
+                                }
+                            }
+                        }
+                    } else {
+                        if (!players[playerId] && scene) {
+                            console.log('🚁 Deploying ally marine:', playerId);
+                            addPlayer(playerData);
+                        }
+                    }
                 }
             }
 
             updateBastralDisplay();
+            console.log('✅ GAME STATE UPDATED. My marine exists:', !!myPlayer, 'Ally marines:', Object.keys(players).length, 'Enemy bots:', Object.keys(bots).length);
         }
+
+        function updateGameTimer(secondsLeft = null) {
+            const timerElement = document.getElementById('gameTimer');
+            if (secondsLeft !== null) {
+                if (secondsLeft > 0) {
+                    timerElement.textContent = `Starting in: ${secondsLeft}s`;
+                    timerElement.style.color = '#ffd93d';
+                } else {
+                    timerElement.textContent = 'Game Active!';
+                    timerElement.style.color = '#ff6b6b';
+                }
+            } else if (isGameActive && gameStartTime) {
+                const elapsed = (Date.now() / 1000) - gameStartTime;
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = Math.floor(elapsed % 60);
+                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                timerElement.style.color = '#fff';
+            } else {
+                timerElement.textContent = 'Waiting...';
+                timerElement.style.color = '#ccc';
+            }
+        }
+
+        // Update timer every second
+        setInterval(updateGameTimer, 1000);
 
         function updateBastralDisplay() {
             const bastralElement = document.getElementById('bastralName');
-            if (bastralId && gameRoom && gameRoom.players[bastralId]) {
-                bastralElement.textContent = `@bastral: ${bastralId}`;
-                bastralElement.style.color = '#ffd93d';
-                
-                // Update bastral player color
-                if (players[bastralId]) {
-                    updatePlayerColor(bastralId, 0xffd93d);
-                }
+            if (bastralId && gameRoom && gameRoom.players && gameRoom.players[bastralId]) {
+                bastralElement.textContent = `🎯 TARGET: ${bastralId}`;
+                bastralElement.style.color = '#ffd700';
+            } else if (bastralId && gameMode === 'singleplayer' && bots[bastralId]) {
+                bastralElement.textContent = `🎯 TARGET: ${bastralId}`;
+                bastralElement.style.color = '#ffd700';
+            } else if (bastralId && bastralId === myPlayerId) {
+                bastralElement.textContent = `⚠️ YOU ARE THE TARGET`;
+                bastralElement.style.color = '#ff0000';
             } else {
-                bastralElement.textContent = 'No @bastral selected';
+                bastralElement.textContent = 'NO TARGET DESIGNATED';
                 bastralElement.style.color = '#ccc';
             }
         }
@@ -920,31 +2402,91 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            handleMovement();
-            
-            if (controls && controls.update) {
-                controls.update();
+            // Only animate if we have a proper 3D scene
+            if (!renderer || !scene || !camera) {
+                return;
             }
             
-            // Update camera to follow player
-            if (myPlayer) {
-                const targetPosition = new THREE.Vector3(
-                    myPlayer.position.x,
-                    myPlayer.position.y + 8,
-                    myPlayer.position.z + 12
-                );
-                camera.position.lerp(targetPosition, 0.05);
+            try {
+                handleMovement();
                 
-                if (controls && controls.target) {
-                    controls.target.lerp(myPlayer.position, 0.05);
+                if (controls && controls.update) {
+                    controls.update();
                 }
+                
+                // Update camera to follow player
+                if (myPlayer && camera) {
+                    const targetPosition = new THREE.Vector3(
+                        myPlayer.position.x,
+                        myPlayer.position.y + 8,
+                        myPlayer.position.z + 12
+                    );
+                    camera.position.lerp(targetPosition, 0.05);
+                    
+                    if (controls && controls.target) {
+                        controls.target.lerp(myPlayer.position, 0.05);
+                    }
+                }
+                
+                renderer.render(scene, camera);
+                
+            } catch (error) {
+                // Silently handle animation errors to prevent crashes
+                console.warn('Animation error (non-critical):', error);
             }
-            
-            renderer.render(scene, camera);
         }
 
-        // Initialize when page loads
-        window.onload = init;
+        function addPlayer(playerData) {
+            if (players[playerData.id]) {
+                removePlayer(playerData.id);
+            }
+            
+            const playerFigure = createMarineCombatVeteran(playerData.id, playerData.position, playerData.id === myPlayerId, false);
+            players[playerData.id] = {
+                data: playerData,
+                figure: playerFigure
+            };
+            scene.add(playerFigure);
+        }
+
+        function updatePlayerColor(playerId, color) {
+            const player = players[playerId];
+            if (!player || !player.figure) return;
+            
+            player.figure.children.forEach(child => {
+                if (child.material && child.material.color && child.type === 'Mesh') {
+                    child.material.color.setHex(color);
+                }
+            });
+        }
+
+        // Initialize when page loads - Multiple methods to ensure it starts
+        window.onload = () => {
+            console.log('Window onload - starting equipment selection');
+            showEquipmentSelection();
+        };
+        
+        // Backup initialization methods
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOMContentLoaded - checking if equipment selection started');
+            setTimeout(() => {
+                const equipModal = document.getElementById('equipmentModal');
+                if (!equipModal) {
+                    console.log('Equipment modal not found - starting backup initialization');
+                    showEquipmentSelection();
+                }
+            }, 1000);
+        });
+        
+        // Final fallback after 3 seconds
+        setTimeout(() => {
+            console.log('Final fallback check');
+            const equipModal = document.getElementById('equipmentModal');
+            if (!equipModal) {
+                console.log('Starting final fallback initialization');
+                showEquipmentSelection();
+            }
+        }, 3000);
     </script>
 </body>
 </html>

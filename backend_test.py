@@ -191,19 +191,30 @@ class BanallAPITester:
             start_time = time.time()
             
             while time.time() - start_time < timeout:
-                if self.websocket_connected and len(self.websocket_messages) > 0:
+                if self.websocket_connected and len(self.websocket_messages) >= 1:
                     break
                 time.sleep(0.1)
             
+            # Give a bit more time for messages to arrive
+            time.sleep(1)
+            
             ws.close()
             
-            if self.websocket_connected:
+            # Check if we got the expected messages
+            expected_messages = ['player_joined', 'room_joined']
+            received_types = [msg.get('type') for msg in self.websocket_messages]
+            
+            # Check if we received the expected messages (connection status doesn't matter after close)
+            has_expected_messages = any(msg_type in expected_messages for msg_type in received_types)
+            
+            if has_expected_messages and len(self.websocket_messages) >= 1:
                 self.tests_passed += 1
                 self.log("✅ WebSocket connection successful")
-                self.log(f"   Received {len(self.websocket_messages)} messages")
+                self.log(f"   Received {len(self.websocket_messages)} messages: {received_types}")
                 return True
             else:
-                self.log("❌ WebSocket connection failed")
+                self.log("❌ WebSocket connection failed or no expected messages received")
+                self.log(f"   Messages: {received_types}")
                 return False
                 
         except Exception as e:
@@ -212,6 +223,104 @@ class BanallAPITester:
         finally:
             self.tests_run += 1
 
+    def test_game_logic_websocket(self):
+        """Test game logic through WebSocket messages"""
+        self.log("🔍 Testing Game Logic via WebSocket...")
+        
+        ws_url = self.base_url.replace('https://', 'wss://').replace('http://', 'ws://')
+        test_player_id = f"marine_{int(time.time())}"
+        ws_endpoint = f"{ws_url}/ws/{test_player_id}"
+        
+        self.log(f"   Testing game logic with player: {test_player_id}")
+        
+        try:
+            # Reset message tracking
+            self.websocket_messages = []
+            self.websocket_connected = False
+            
+            ws = websocket.WebSocketApp(
+                ws_endpoint,
+                on_open=lambda ws: self.on_game_websocket_open(ws, test_player_id),
+                on_message=self.on_websocket_message,
+                on_error=self.on_websocket_error,
+                on_close=self.on_websocket_close
+            )
+            
+            ws_thread = threading.Thread(target=ws.run_forever)
+            ws_thread.daemon = True
+            ws_thread.start()
+            
+            # Wait for connection and initial messages
+            timeout = 15
+            start_time = time.time()
+            
+            while time.time() - start_time < timeout:
+                if self.websocket_connected and len(self.websocket_messages) >= 2:
+                    break
+                time.sleep(0.1)
+            
+            # Give more time for all messages
+            time.sleep(2)
+            
+            ws.close()
+            
+            # Analyze received messages
+            message_types = [msg.get('type') for msg in self.websocket_messages]
+            self.log(f"   Received message types: {message_types}")
+            
+            # Check for expected game messages
+            expected_types = ['player_joined', 'room_joined']
+            success = any(msg_type in expected_types for msg_type in message_types)
+            
+            if success:
+                self.tests_passed += 1
+                self.log("✅ Game logic WebSocket test successful")
+                
+                # Check for game state in messages
+                for msg in self.websocket_messages:
+                    if msg.get('type') == 'room_joined' and 'room_state' in msg:
+                        room_state = msg['room_state']
+                        self.log(f"   Room state received: players={room_state.get('player_count', 0)}")
+                        break
+                        
+                return True
+            else:
+                self.log("❌ Game logic WebSocket test failed - no expected messages")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Game logic WebSocket test failed: {str(e)}")
+            return False
+        finally:
+            self.tests_run += 1
+
+    def on_game_websocket_open(self, ws, player_id):
+        """Handle game WebSocket open with more comprehensive testing"""
+        self.log(f"🔌 Game WebSocket connected for player: {player_id}")
+        self.websocket_connected = True
+        
+        # Send position update
+        position_update = {
+            "type": "position_update",
+            "data": {
+                "x": 5.0,
+                "y": 1.0,
+                "z": -2.0,
+                "rotation_y": 0.5,
+                "animation_state": "walking"
+            }
+        }
+        ws.send(json.dumps(position_update))
+        self.log("📤 Sent position update")
+        
+        # Send chat message
+        time.sleep(0.5)
+        chat_message = {
+            "type": "chat_message",
+            "message": "Test marine reporting for duty!"
+        }
+        ws.send(json.dumps(chat_message))
+        self.log("📤 Sent chat message")
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting BAN@LL Backend API Tests")
@@ -228,6 +337,9 @@ class BanallAPITester:
         
         # Test WebSocket connectivity
         self.test_websocket_connection()
+        
+        # Test game logic via WebSocket
+        self.test_game_logic_websocket()
         
         # Print summary
         self.log("=" * 60)

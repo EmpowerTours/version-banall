@@ -218,6 +218,70 @@ class GameManager:
         for player_id in room.players.keys():
             if player_id != exclude_player:
                 await self.send_to_player(player_id, message)
+                
+    async def update_player_position(self, player_id: str, position_data: dict):
+        """Update player position and animation state"""
+        if player_id not in self.player_to_room:
+            return
+            
+        room_id = self.player_to_room[player_id]
+        if room_id not in self.rooms or player_id not in self.rooms[room_id].players:
+            return
+            
+        player = self.rooms[room_id].players[player_id]
+        player.position.x = position_data.get("x", player.position.x)
+        player.position.y = position_data.get("y", player.position.y)
+        player.position.z = position_data.get("z", player.position.z)
+        player.position.rotation_y = position_data.get("rotation_y", player.position.rotation_y)
+        player.animation_state = position_data.get("animation_state", "idle")
+        player.last_updated = time.time()
+        
+        # Broadcast position update to all players in room
+        await self.broadcast_to_room(room_id, {
+            "type": "player_moved",
+            "player_id": player_id,
+            "position": asdict(player.position),
+            "animation_state": player.animation_state
+        }, exclude_player=player_id)
+        
+    async def start_game_countdown(self, room_id: str, countdown_seconds: int = 10):
+        """Start a countdown before the game begins"""
+        room = self.rooms.get(room_id)
+        if not room or len(room.players) < 2:
+            return
+            
+        # Notify players of countdown start
+        await self.broadcast_to_room(room_id, {
+            "type": "game_countdown_started",
+            "countdown_seconds": countdown_seconds
+        })
+        
+        # Countdown loop
+        for i in range(countdown_seconds, 0, -1):
+            await self.broadcast_to_room(room_id, {
+                "type": "game_countdown",
+                "seconds_left": i
+            })
+            await asyncio.sleep(1)
+            
+        # Start the actual game
+        room.is_active = True
+        room.game_start_time = time.time()
+        
+        # Select random bastral from active players
+        active_players = [p for p in room.players.values() if not p.is_spectator]
+        if active_players:
+            import random
+            bastral = random.choice(active_players)
+            room.bastral_id = bastral.id
+            bastral.is_bastral = True
+            
+            await self.broadcast_to_room(room_id, {
+                "type": "game_started",
+                "bastral_id": bastral.id,
+                "bastral_username": bastral.username,
+                "game_start_time": room.game_start_time
+            })
 
 # Global variables
 application = None
@@ -1461,28 +1525,16 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
             message = json.loads(data)
             
             if message["type"] == "position_update":
-                # Handle position updates
-                pass
+                await game_manager.update_player_position(player_id, message["data"])
             elif message["type"] == "chat_message":
                 await game_manager.handle_chat_message(player_id, message["message"])
             elif message["type"] == "start_game":
-                # Start game logic
+                # Start game with countdown
                 room_id = game_manager.player_to_room.get(player_id, "main")
                 room = game_manager.rooms.get(room_id)
                 if room and len(room.players) >= 2:
-                    room.is_active = True
-                    room.game_start_time = time.time()
-                    import random
-                    bastral = random.choice(list(room.players.values()))
-                    room.bastral_id = bastral.id
-                    bastral.is_bastral = True
-                    
-                    await game_manager.broadcast_to_room(room_id, {
-                        "type": "game_started",
-                        "bastral_id": bastral.id,
-                        "bastral_username": bastral.username,
-                        "game_start_time": room.game_start_time
-                    })
+                    # Start countdown in background
+                    asyncio.create_task(game_manager.start_game_countdown(room_id, 10))
                     
     except WebSocketDisconnect:
         await game_manager.remove_player(player_id)
@@ -1517,7 +1569,7 @@ window.env = {{
     """
     return Response(content=content, media_type="application/javascript")
 
-app.mount("/public", StaticFiles(directory="public"), name="public")
+# Removed duplicate mount - using the absolute path mount above
 
 @app.get("/")
 async def root():
@@ -1525,7 +1577,7 @@ async def root():
 
 @app.get("/public/{path:path}")
 async def serve_public(path: str):
-    file_path = f"public/{path}"
+    file_path = f"/app/public/{path}"
     if os.path.exists(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
